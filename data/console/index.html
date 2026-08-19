@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SolarStation Console</title>
+    <link rel="stylesheet" href="/console/styles.css">
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <div class="panel">
+                <h1>SolarStation Console</h1>
+                <p>Network control surface for the ESP32. This page talks to the device API and is served directly by the device filesystem.</p>
+                <div class="stats">
+                    <div class="stat"><span>Device</span><strong id="deviceMode">-</strong></div>
+                    <div class="stat"><span>IP</span><strong id="deviceIp">-</strong></div>
+                    <div class="stat"><span>Local time</span><strong id="deviceTime">-</strong></div>
+                    <div class="stat"><span>NTP</span><strong id="deviceNtp">-</strong></div>
+                </div>
+            </div>
+            <div class="panel">
+                <h2>Connection</h2>
+                <label for="baseUrl">Device base URL</label>
+                <input type="text" id="baseUrl" placeholder="http://192.168.4.1">
+                <div class="actions">
+                    <button class="action secondary" id="connectBtn" type="button">Connect</button>
+                    <button class="action warning" id="restartBtn" type="button">Restart</button>
+                </div>
+                <p class="callout">Default AP access is usually <strong>http://192.168.4.1</strong>. After Wi-Fi onboarding, point this field to the station IP or hostname.</p>
+                <div id="connectionMessage" class="message"></div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="tabs">
+                <button class="tablink active" data-tab="overview">Overview</button>
+                <button class="tablink" data-tab="configuration">Configuration</button>
+                <button class="tablink" data-tab="outputs">Outputs</button>
+                <button class="tablink" data-tab="diagnostics">Diagnostics</button>
+                <button class="tablink" data-tab="logs">Logs</button>
+            </div>
+        </section>
+
+        <section id="overview" class="panel tab active">
+            <h2>Overview</h2>
+            <div class="grid">
+                <div class="output-card">
+                    <h3>Solar</h3>
+                    <div class="statusline"><span>Sunrise</span><strong id="overviewSunrise">-</strong></div>
+                    <div class="statusline"><span>Sunset</span><strong id="overviewSunset">-</strong></div>
+                    <div class="statusline"><span>Tracking override</span><strong id="overviewOverride">-</strong></div>
+                </div>
+                <div class="output-card">
+                    <h3>Sensors</h3>
+                    <div class="statusline"><span>Load 1</span><strong id="overviewLoad1">-</strong></div>
+                    <div class="statusline"><span>Load 2</span><strong id="overviewLoad2">-</strong></div>
+                    <div class="statusline"><span>Limit switches</span><strong id="overviewLimits">-</strong></div>
+                    <div class="statusline"><span>Stepper DIAG</span><strong id="overviewDiag">-</strong></div>
+                </div>
+            </div>
+            <div class="callout muted" id="overviewOutputs">Outputs: -</div>
+        </section>
+
+        <section id="configuration" class="panel tab">
+            <h2>Configuration</h2>
+            <form id="configForm">
+                <div class="grid">
+                    <div class="output-card">
+                        <h3>Solar Tracking</h3>
+                        <label for="stLatitude">Latitude</label>
+                        <input type="text" id="stLatitude" name="stLatitude">
+                        <label for="stLongitude">Longitude</label>
+                        <input type="text" id="stLongitude" name="stLongitude">
+                        <label for="stAltitude">Altitude</label>
+                        <input type="text" id="stAltitude" name="stAltitude">
+                        <label for="stTimeZoneOffset">Timezone offset</label>
+                        <input type="text" id="stTimeZoneOffset" name="stTimeZoneOffset">
+                        <label><input type="checkbox" id="stUseDST" name="stUseDST">Use daylight saving time</label>
+                        <label for="stPressure">Pressure</label>
+                        <input type="text" id="stPressure" name="stPressure">
+                        <label for="stTemperature">Temperature</label>
+                        <input type="text" id="stTemperature" name="stTemperature">
+                    </div>
+
+                    <div class="output-card">
+                        <h3>Stepper Drive</h3>
+                        <label for="stepper1MotorStepsPerRevolution">Motor 1 (Azimuth) full steps/rev</label>
+                        <input type="number" id="stepper1MotorStepsPerRevolution" name="stepper1MotorStepsPerRevolution" min="1" step="1" value="200">
+                        <label for="stepper2MotorStepsPerRevolution">Motor 2 (Elevation) full steps/rev</label>
+                        <input type="number" id="stepper2MotorStepsPerRevolution" name="stepper2MotorStepsPerRevolution" min="1" step="1" value="200">
+                        <label for="stepper3MotorStepsPerRevolution">Motor 3 full steps/rev</label>
+                        <input type="number" id="stepper3MotorStepsPerRevolution" name="stepper3MotorStepsPerRevolution" min="1" step="1" value="200">
+                        <label for="stepperMicrostepMode">Microstep mode (shared)</label>
+                        <select id="stepperMicrostepMode" name="stepperMicrostepMode">
+                            <option value="8">8</option>
+                            <option value="16">16</option>
+                            <option value="32">32</option>
+                            <option value="64">64</option>
+                        </select>
+                    </div>
+
+                    <div class="output-card">
+                        <h3>Azimuth (Motor 1)</h3>
+                        <label for="azimuthDegMax">Max angle</label>
+                        <input type="text" id="azimuthDegMax" name="azimuthDegMax">
+                        <label for="azimuthDegMin">Min angle</label>
+                        <input type="text" id="azimuthDegMin" name="azimuthDegMin">
+                        <label for="azimuthStepSpeedHz">Step speed Hz</label>
+                        <input type="number" id="azimuthStepSpeedHz" name="azimuthStepSpeedHz">
+                        <label for="azimuthStepAcceleration">Acceleration</label>
+                        <input type="number" id="azimuthStepAcceleration" name="azimuthStepAcceleration">
+                        <label for="azimuthTimeThreshold">Time threshold</label>
+                        <input type="number" id="azimuthTimeThreshold" name="azimuthTimeThreshold">
+                    </div>
+
+                    <div class="output-card">
+                        <h3>Elevation (Motor 2)</h3>
+                        <label for="elevationDegMax">Max angle</label>
+                        <input type="text" id="elevationDegMax" name="elevationDegMax">
+                        <label for="elevationDegMin">Min angle</label>
+                        <input type="text" id="elevationDegMin" name="elevationDegMin">
+                        <label for="elevationStepSpeedHz">Step speed Hz</label>
+                        <input type="number" id="elevationStepSpeedHz" name="elevationStepSpeedHz">
+                        <label for="elevationStepAcceleration">Acceleration</label>
+                        <input type="number" id="elevationStepAcceleration" name="elevationStepAcceleration">
+                        <label for="elevationTimeThreshold">Time threshold</label>
+                        <input type="number" id="elevationTimeThreshold" name="elevationTimeThreshold">
+                    </div>
+
+                    <div class="output-card">
+                        <h3>Device Services</h3>
+                        <label for="ntpServer1">NTP server 1</label>
+                        <input type="text" id="ntpServer1" name="ntpServer1">
+                        <label for="ntpServer2">NTP server 2</label>
+                        <input type="text" id="ntpServer2" name="ntpServer2">
+                        <label for="ntpServer3">NTP server 3</label>
+                        <input type="text" id="ntpServer3" name="ntpServer3">
+                        <label for="wifiSSID">Wi-Fi SSID</label>
+                        <input type="text" id="wifiSSID" name="wifiSSID">
+                        <label for="wifiPassword">Wi-Fi password</label>
+                        <input type="password" id="wifiPassword" name="wifiPassword" placeholder="Leave blank to keep current password">
+                    </div>
+                </div>
+
+                <div class="panel schedule-panel">
+                    <h3>Output Schedules</h3>
+                    <div class="schedule-grid" id="scheduleGrid"></div>
+                </div>
+
+                <div class="actions">
+                    <input type="submit" value="Save Configuration">
+                </div>
+                <div id="configMessage" class="message"></div>
+            </form>
+        </section>
+
+        <section id="outputs" class="panel tab">
+            <h2>Outputs</h2>
+            <div class="grid" id="outputCards"></div>
+            <div id="outputMessage" class="message"></div>
+        </section>
+
+        <section id="diagnostics" class="panel tab">
+            <h2>Diagnostics</h2>
+            <div class="grid">
+                <div class="output-card">
+                    <h3>Tracking Override</h3>
+                    <label for="overrideAzimuth">Azimuth</label>
+                    <input type="number" id="overrideAzimuth" step="0.1">
+                    <label for="overrideElevation">Elevation</label>
+                    <input type="number" id="overrideElevation" step="0.1">
+                    <div class="actions">
+                        <button class="action" type="button" id="applyOverrideBtn">Apply Override</button>
+                        <button class="action warning" type="button" id="cancelOverrideBtn">Cancel Override</button>
+                    </div>
+                </div>
+                <div class="output-card">
+                    <h3>Current Status</h3>
+                    <div class="statusline"><span>Override</span><strong id="diagOverride">-</strong></div>
+                    <div class="statusline"><span>Limits</span><strong id="diagLimits">-</strong></div>
+                    <div class="statusline"><span>Diagnostics</span><strong id="diagSignals">-</strong></div>
+                </div>
+            </div>
+            <div id="diagMessage" class="message"></div>
+        </section>
+
+        <section id="logs" class="panel tab">
+            <h2>Sensor Logs</h2>
+            <div class="actions">
+                <button class="action secondary" type="button" id="refreshLogsBtn">Refresh Logs</button>
+            </div>
+            <div class="callout muted" id="logsUsage">Storage usage: -</div>
+            <div class="logs-table-wrap">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Type</th>
+                            <th>Date (YYMMDD)</th>
+                            <th>Bytes</th>
+                            <th>Download</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <tr><td colspan="5">No data yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="logsMessage" class="message"></div>
+        </section>
+    </div>
+
+    <script src="/console/app.js"></script>
+</body>
+</html>

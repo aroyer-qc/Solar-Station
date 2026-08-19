@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SolarStation Outputs</title>
+    <style>
+        :root {
+            --bg: #f6f0e5;
+            --panel: #fffaf2;
+            --line: #d9c9a8;
+            --ink: #203028;
+            --accent: #2c7a5a;
+            --accent-2: #cf6a32;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Georgia, "Segoe UI", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top right, #f6d9a6 0, transparent 28%),
+                linear-gradient(180deg, #faf4ea 0%, var(--bg) 100%);
+        }
+        .shell {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .hero {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 2fr 1fr;
+            margin-bottom: 24px;
+        }
+        .panel {
+            background: rgba(255, 250, 242, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(75, 58, 31, 0.08);
+        }
+        h1, h2, h3 { margin-top: 0; }
+        h1 { font-size: 2.2rem; margin-bottom: 8px; }
+        .subtle { color: #58685f; }
+        .stats {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        }
+        .stat {
+            padding: 16px;
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid #eadfc7;
+        }
+        .stat strong {
+            display: block;
+            font-size: 1.4rem;
+            margin-top: 8px;
+        }
+        .stat .mini {
+            display: block;
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: #58685f;
+        }
+        .status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .badge-manual {
+            background: #efe5d2;
+            border-color: #d9c9a8;
+            color: #6a5130;
+        }
+        .badge-auto-active {
+            background: #dcefdc;
+            border-color: #91bc91;
+            color: #285c2f;
+        }
+        .badge-auto-idle {
+            background: #e7efe7;
+            border-color: #b6c7b7;
+            color: #4f6c55;
+        }
+        .badge-auto-wait {
+            background: #f8e5cf;
+            border-color: #d7a26d;
+            color: #8f4f1e;
+        }
+        .badge-auto-disabled {
+            background: #f1e2d7;
+            border-color: #caa58a;
+            color: #7b5740;
+        }
+        .diag-grid {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            margin-top: 18px;
+        }
+        .diag-box {
+            padding: 14px;
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid #eadfc7;
+        }
+        .diag-box strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+        .signal-grid {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        }
+        .signal-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px;
+            border-radius: 12px;
+            background: #faf7f0;
+            border: 1px solid #eadfc7;
+        }
+        .signal-item label {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #58685f;
+        }
+        .badge-signal-active {
+            background: #f8e0d5;
+            border-color: #db9877;
+            color: #8c3e1d;
+        }
+        .badge-signal-fault {
+            background: #f2d0c5;
+            border-color: #c76b45;
+            color: #7e2c12;
+            animation: faultPulse 1.1s ease-in-out infinite;
+        }
+        @keyframes faultPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(199, 107, 69, 0.25);
+            }
+            50% {
+                transform: scale(1.04);
+                box-shadow: 0 0 0 7px rgba(199, 107, 69, 0.0);
+            }
+        }
+        .badge-signal-ok {
+            background: #dcefdc;
+            border-color: #91bc91;
+            color: #285c2f;
+        }
+        .badge-signal-idle {
+            background: #e7efe7;
+            border-color: #b6c7b7;
+            color: #4f6c55;
+        }
+        .led {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            border: 1px solid rgba(32, 48, 40, 0.25);
+            background: #b9b9b9;
+        }
+        .led-waiting {
+            background: #f4c542;
+            box-shadow: 0 0 8px rgba(244, 197, 66, 0.7);
+        }
+        .led-ok {
+            background: #2aa24e;
+            box-shadow: 0 0 10px rgba(42, 162, 78, 0.75);
+        }
+        .led-error {
+            background: #d5443d;
+            box-shadow: 0 0 10px rgba(213, 68, 61, 0.75);
+        }
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .nav .tablink {
+            display: inline-block;
+            text-decoration: none;
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 16px;
+            cursor: pointer;
+            background: #eadfc7;
+            color: var(--ink);
+            font-weight: 600;
+        }
+        .nav .tablink.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        .tabcontent { display: none; }
+        .tabcontent.active { display: block; }
+        .grid {
+            display: grid;
+            gap: 18px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+        .schedule-grid {
+            display: grid;
+            gap: 18px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .schedule-output {
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.54);
+        }
+        .schedule-slot {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid var(--line);
+        }
+        .schedule-slot h4 { margin: 0 0 10px; }
+        .schedule-days {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            margin: 14px 0 4px;
+            padding: 8px 0 0;
+            border: 0;
+        }
+        .schedule-days legend { font-weight: 600; }
+        .schedule-days label { margin: 0; font-size: 0.9rem; }
+        .shared-stepper-panel {
+            margin-bottom: 18px;
+        }
+        .shared-stepper-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 14px 16px;
+            align-items: start;
+        }
+        .shared-stepper-form {
+            display: grid;
+            gap: 14px 16px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            align-items: end;
+        }
+        .shared-stepper-form .field label {
+            margin-top: 0;
+        }
+        .shared-stepper-buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            margin-top: 0;
+            margin-left: auto;
+            width: auto;
+            align-self: start;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            font-weight: 600;
+        }
+        input[type=text], input[type=number], input[type=password] {
+            width: 100%;
+            margin-top: 6px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+        }
+        input[type=checkbox] { margin-right: 8px; }
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        .range-ok {
+            color: #1f8a3b;
+        }
+        .range-bad {
+            color: #bf1e1e;
+        }
+        input[type=submit], button.action {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 16px;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+        }
+        button.action.is-current-state {
+            box-shadow:
+                inset 0 0 0 3px rgba(255, 255, 255, 0.92),
+                0 0 0 4px rgba(255, 217, 84, 0.92),
+                0 0 24px rgba(255, 191, 64, 0.78),
+                0 8px 18px rgba(32, 48, 40, 0.28);
+            filter: saturate(1.45) brightness(1.08);
+            transform: translateY(-1px) scale(1.02);
+        }
+        button.action:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        button.warning { background: var(--accent-2); }
+        @media (max-width: 760px) {
+            .hero { grid-template-columns: 1fr; }
+            .shared-stepper-layout { grid-template-columns: 1fr; }
+            .schedule-grid { grid-template-columns: 1fr; }
+            .shared-stepper-buttons {
+                align-items: flex-start;
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="panel">
+            <h1>Outputs</h1>
+            <div class="actions">
+                <button class="action" onclick="window.location.href='/portal'">Back to main page</button>
+            </div>
+        </section>
+
+<section id="outputs" class="tabcontent active">
+            <div class="grid">
+                <div class="panel">
+                    <h2>Output 1</h2>
+
+                    <form class="output-mode-form" data-output-index="1">
+                        <div class="actions">
+                            <label>
+                                <input type="checkbox" data-output-manual-toggle="1">
+                                Manual mode
+                            </label>
+                        </div>
+                    </form>
+                    <form action="/setOutputControl" method="POST">
+                        <input type="hidden" name="output" value="1">
+                        <div class="actions">
+                            <button class="action" type="submit" name="action" value="on" data-manual-action="1">ON</button>
+                            <button class="action warning" type="submit" name="action" value="off" data-manual-action="1">OFF</button>
+                            <button class="action" type="submit" name="action" value="toggle" data-manual-action="1">TOGGLE</button>
+                        </div>
+                    </form>
+                    <form action="/setOutputControl" method="POST">
+                        <input type="hidden" name="output" value="1">
+                        <input type="hidden" name="action" value="pwm">
+                        <label for="output1Duty">PWM %</label>
+                        <input type="number" id="output1Duty" name="duty" min="0" max="100" value="{{out1DutyPercent}}">
+                        <div class="actions">
+                            <input type="submit" value="Apply PWM">
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel">
+                    <h2>Output 2</h2>
+
+                    <form class="output-mode-form" data-output-index="2">
+                        <div class="actions">
+                            <label>
+                                <input type="checkbox" data-output-manual-toggle="2">
+                                Manual mode
+                            </label>
+                        </div>
+                    </form>
+                    <form action="/setOutputControl" method="POST">
+                        <input type="hidden" name="output" value="2">
+                        <div class="actions">
+                            <button class="action" type="submit" name="action" value="on" data-manual-action="2">ON</button>
+                            <button class="action warning" type="submit" name="action" value="off" data-manual-action="2">OFF</button>
+                            <button class="action" type="submit" name="action" value="toggle" data-manual-action="2">TOGGLE</button>
+                        </div>
+                    </form>
+                    <form action="/setOutputControl" method="POST">
+                        <input type="hidden" name="output" value="2">
+                        <input type="hidden" name="action" value="pwm">
+                        <label for="output2Duty">PWM %</label>
+                        <input type="number" id="output2Duty" name="duty" min="0" max="100" value="{{out2DutyPercent}}">
+                        <div class="actions">
+                            <input type="submit" value="Apply PWM">
+                        </div>
+                    </form>
+                </div>
+
+                <div class="panel">
+                    <h2>Output 3</h2>
+
+                    <form class="output-mode-form" data-output-index="3">
+                        <div class="actions">
+                            <label>
+                                <input type="checkbox" data-output-manual-toggle="3">
+                                Manual mode
+                            </label>
+                        </div>
+                    </form>
+                    <form action="/setOutputControl" method="POST">
+                        <input type="hidden" name="output" value="3">
+                        <div class="actions">
+                            <button class="action" type="submit" name="action" value="on" data-manual-action="3">ON</button>
+                            <button class="action warning" type="submit" name="action" value="off" data-manual-action="3">OFF</button>
+                            <button class="action" type="submit" name="action" value="toggle" data-manual-action="3">TOGGLE</button>
+                        </div>
+                    </form>
+                    <form action="/setOutputControl" method="POST">
+                        <input type="hidden" name="output" value="3">
+                        <input type="hidden" name="action" value="pwm">
+                        <label for="output3Duty">PWM %</label>
+                        <input type="number" id="output3Duty" name="duty" min="0" max="100" value="{{out3DutyPercent}}">
+                        <div class="actions">
+                            <input type="submit" value="Apply PWM">
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="panel">
+                <h2>Daily output schedule</h2>
+                <p class="subtle">Schedules use your configured local timezone offset. Select the days on which each schedule starts; a schedule that crosses midnight continues into the following day. A schedule only drives an output while that output is in AUTO mode.</p>
+                <form action="/saveScheduleConfig" method="POST">
+                    <div class="schedule-grid">
+                        <div class="schedule-output">
+                            <h3>Output 1</h3>
+                            <div class="schedule-slot">
+                            <h4>Schedule 1</h4>
+                            <label><input type="checkbox" name="schedule1Enabled" data-schedule-enabled="1" {{schedule1EnabledChecked}}>Enable schedule</label>
+                            <div data-schedule-config="1">
+                            <fieldset class="schedule-days" data-schedule-days="{{schedule1ActiveDaysMask}}" data-schedule-prefix="schedule1"><legend>Active days</legend></fieldset>
+                            <label for="schedule1StartType">Start source</label>
+                            <select id="schedule1StartType" name="schedule1StartType">
+                                <option value="0" {{schedule1StartTypeFixedSelected}}>Fixed time</option>
+                                <option value="1" {{schedule1StartTypeSunriseSelected}}>Sunrise</option>
+                                <option value="2" {{schedule1StartTypeSunsetSelected}}>Sunset</option>
+                            </select>
+                            <label for="schedule1StartHour">Start (local)</label>
+                            <div class="actions">
+                                <input type="number" id="schedule1StartHour" name="schedule1StartHour" min="0" max="23" value="{{schedule1StartHour}}">
+                                <input type="number" name="schedule1StartMinute" min="0" max="59" value="{{schedule1StartMinute}}">
+                            </div>
+                            <label for="schedule1StartOffsetMinutes">Start offset (min)</label>
+                            <input type="number" id="schedule1StartOffsetMinutes" name="schedule1StartOffsetMinutes" min="-720" max="720" value="{{schedule1StartOffsetMinutes}}">
+                            <label for="schedule1EndType">End source</label>
+                            <select id="schedule1EndType" name="schedule1EndType">
+                                <option value="0" {{schedule1EndTypeFixedSelected}}>Fixed time</option>
+                                <option value="1" {{schedule1EndTypeSunriseSelected}}>Sunrise</option>
+                                <option value="2" {{schedule1EndTypeSunsetSelected}}>Sunset</option>
+                            </select>
+                            <label for="schedule1EndHour">End (local)</label>
+                            <div class="actions">
+                                <input type="number" id="schedule1EndHour" name="schedule1EndHour" min="0" max="23" value="{{schedule1EndHour}}">
+                                <input type="number" name="schedule1EndMinute" min="0" max="59" value="{{schedule1EndMinute}}">
+                            </div>
+                            <label for="schedule1EndOffsetMinutes">End offset (min)</label>
+                            <input type="number" id="schedule1EndOffsetMinutes" name="schedule1EndOffsetMinutes" min="-720" max="720" value="{{schedule1EndOffsetMinutes}}">
+                            <label for="schedule1DutyPercent">PWM %</label>
+                            <input type="number" id="schedule1DutyPercent" name="schedule1DutyPercent" min="0" max="100" value="{{schedule1DutyPercent}}">
+                            </div>
+                            </div>
+                            <div class="schedule-slot">
+                                <h4>Schedule 2</h4>
+                                <label><input type="checkbox" name="schedule1Slot2Enabled" data-schedule-enabled="2" {{schedule1Slot2EnabledChecked}}>Enable schedule</label>
+                                <div data-schedule-config="2">
+                                    <fieldset class="schedule-days" data-schedule-days="{{schedule1Slot2ActiveDaysMask}}" data-schedule-prefix="schedule1Slot2"><legend>Active days</legend></fieldset>
+                                    <label for="schedule1Slot2StartType">Start source</label>
+                                    <select id="schedule1Slot2StartType" name="schedule1Slot2StartType"><option value="0" {{schedule1Slot2StartTypeFixedSelected}}>Fixed time</option><option value="1" {{schedule1Slot2StartTypeSunriseSelected}}>Sunrise</option><option value="2" {{schedule1Slot2StartTypeSunsetSelected}}>Sunset</option></select>
+                                    <label for="schedule1Slot2StartHour">Start (local)</label>
+                                    <div class="actions"><input type="number" id="schedule1Slot2StartHour" name="schedule1Slot2StartHour" min="0" max="23" value="{{schedule1Slot2StartHour}}"><input type="number" name="schedule1Slot2StartMinute" min="0" max="59" value="{{schedule1Slot2StartMinute}}"></div>
+                                    <label for="schedule1Slot2StartOffsetMinutes">Start offset (min)</label><input type="number" id="schedule1Slot2StartOffsetMinutes" name="schedule1Slot2StartOffsetMinutes" min="-720" max="720" value="{{schedule1Slot2StartOffsetMinutes}}">
+                                    <label for="schedule1Slot2EndType">End source</label>
+                                    <select id="schedule1Slot2EndType" name="schedule1Slot2EndType"><option value="0" {{schedule1Slot2EndTypeFixedSelected}}>Fixed time</option><option value="1" {{schedule1Slot2EndTypeSunriseSelected}}>Sunrise</option><option value="2" {{schedule1Slot2EndTypeSunsetSelected}}>Sunset</option></select>
+                                    <label for="schedule1Slot2EndHour">End (local)</label>
+                                    <div class="actions"><input type="number" id="schedule1Slot2EndHour" name="schedule1Slot2EndHour" min="0" max="23" value="{{schedule1Slot2EndHour}}"><input type="number" name="schedule1Slot2EndMinute" min="0" max="59" value="{{schedule1Slot2EndMinute}}"></div>
+                                    <label for="schedule1Slot2EndOffsetMinutes">End offset (min)</label><input type="number" id="schedule1Slot2EndOffsetMinutes" name="schedule1Slot2EndOffsetMinutes" min="-720" max="720" value="{{schedule1Slot2EndOffsetMinutes}}">
+                                    <label for="schedule1Slot2DutyPercent">PWM %</label><input type="number" id="schedule1Slot2DutyPercent" name="schedule1Slot2DutyPercent" min="0" max="100" value="{{schedule1Slot2DutyPercent}}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="schedule-output">
+                            <h3>Output 2</h3>
+                            <div class="schedule-slot">
+                            <h4>Schedule 1</h4>
+                            <label><input type="checkbox" name="schedule2Enabled" data-schedule-enabled="1" {{schedule2EnabledChecked}}>Enable schedule</label>
+                            <div data-schedule-config="1">
+                            <fieldset class="schedule-days" data-schedule-days="{{schedule2ActiveDaysMask}}" data-schedule-prefix="schedule2"><legend>Active days</legend></fieldset>
+                            <label for="schedule2StartType">Start source</label>
+                            <select id="schedule2StartType" name="schedule2StartType">
+                                <option value="0" {{schedule2StartTypeFixedSelected}}>Fixed time</option>
+                                <option value="1" {{schedule2StartTypeSunriseSelected}}>Sunrise</option>
+                                <option value="2" {{schedule2StartTypeSunsetSelected}}>Sunset</option>
+                            </select>
+                            <label for="schedule2StartHour">Start (local)</label>
+                            <div class="actions">
+                                <input type="number" id="schedule2StartHour" name="schedule2StartHour" min="0" max="23" value="{{schedule2StartHour}}">
+                                <input type="number" name="schedule2StartMinute" min="0" max="59" value="{{schedule2StartMinute}}">
+                            </div>
+                            <label for="schedule2StartOffsetMinutes">Start offset (min)</label>
+                            <input type="number" id="schedule2StartOffsetMinutes" name="schedule2StartOffsetMinutes" min="-720" max="720" value="{{schedule2StartOffsetMinutes}}">
+                            <label for="schedule2EndType">End source</label>
+                            <select id="schedule2EndType" name="schedule2EndType">
+                                <option value="0" {{schedule2EndTypeFixedSelected}}>Fixed time</option>
+                                <option value="1" {{schedule2EndTypeSunriseSelected}}>Sunrise</option>
+                                <option value="2" {{schedule2EndTypeSunsetSelected}}>Sunset</option>
+                            </select>
+                            <label for="schedule2EndHour">End (local)</label>
+                            <div class="actions">
+                                <input type="number" id="schedule2EndHour" name="schedule2EndHour" min="0" max="23" value="{{schedule2EndHour}}">
+                                <input type="number" name="schedule2EndMinute" min="0" max="59" value="{{schedule2EndMinute}}">
+                            </div>
+                            <label for="schedule2EndOffsetMinutes">End offset (min)</label>
+                            <input type="number" id="schedule2EndOffsetMinutes" name="schedule2EndOffsetMinutes" min="-720" max="720" value="{{schedule2EndOffsetMinutes}}">
+                            <label for="schedule2DutyPercent">PWM %</label>
+                            <input type="number" id="schedule2DutyPercent" name="schedule2DutyPercent" min="0" max="100" value="{{schedule2DutyPercent}}">
+                            </div>
+                            </div>
+                            <div class="schedule-slot">
+                                <h4>Schedule 2</h4>
+                                <label><input type="checkbox" name="schedule2Slot2Enabled" data-schedule-enabled="2" {{schedule2Slot2EnabledChecked}}>Enable schedule</label>
+                                <div data-schedule-config="2">
+                                    <fieldset class="schedule-days" data-schedule-days="{{schedule2Slot2ActiveDaysMask}}" data-schedule-prefix="schedule2Slot2"><legend>Active days</legend></fieldset>
+                                    <label for="schedule2Slot2StartType">Start source</label>
+                                    <select id="schedule2Slot2StartType" name="schedule2Slot2StartType"><option value="0" {{schedule2Slot2StartTypeFixedSelected}}>Fixed time</option><option value="1" {{schedule2Slot2StartTypeSunriseSelected}}>Sunrise</option><option value="2" {{schedule2Slot2StartTypeSunsetSelected}}>Sunset</option></select>
+                                    <label for="schedule2Slot2StartHour">Start (local)</label>
+                                    <div class="actions"><input type="number" id="schedule2Slot2StartHour" name="schedule2Slot2StartHour" min="0" max="23" value="{{schedule2Slot2StartHour}}"><input type="number" name="schedule2Slot2StartMinute" min="0" max="59" value="{{schedule2Slot2StartMinute}}"></div>
+                                    <label for="schedule2Slot2StartOffsetMinutes">Start offset (min)</label><input type="number" id="schedule2Slot2StartOffsetMinutes" name="schedule2Slot2StartOffsetMinutes" min="-720" max="720" value="{{schedule2Slot2StartOffsetMinutes}}">
+                                    <label for="schedule2Slot2EndType">End source</label>
+                                    <select id="schedule2Slot2EndType" name="schedule2Slot2EndType"><option value="0" {{schedule2Slot2EndTypeFixedSelected}}>Fixed time</option><option value="1" {{schedule2Slot2EndTypeSunriseSelected}}>Sunrise</option><option value="2" {{schedule2Slot2EndTypeSunsetSelected}}>Sunset</option></select>
+                                    <label for="schedule2Slot2EndHour">End (local)</label>
+                                    <div class="actions"><input type="number" id="schedule2Slot2EndHour" name="schedule2Slot2EndHour" min="0" max="23" value="{{schedule2Slot2EndHour}}"><input type="number" name="schedule2Slot2EndMinute" min="0" max="59" value="{{schedule2Slot2EndMinute}}"></div>
+                                    <label for="schedule2Slot2EndOffsetMinutes">End offset (min)</label><input type="number" id="schedule2Slot2EndOffsetMinutes" name="schedule2Slot2EndOffsetMinutes" min="-720" max="720" value="{{schedule2Slot2EndOffsetMinutes}}">
+                                    <label for="schedule2Slot2DutyPercent">PWM %</label><input type="number" id="schedule2Slot2DutyPercent" name="schedule2Slot2DutyPercent" min="0" max="100" value="{{schedule2Slot2DutyPercent}}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="schedule-output">
+                            <h3>Output 3</h3>
+                            <div class="schedule-slot">
+                            <h4>Schedule 1</h4>
+                            <label><input type="checkbox" name="schedule3Enabled" data-schedule-enabled="1" {{schedule3EnabledChecked}}>Enable schedule</label>
+                            <div data-schedule-config="1">
+                            <fieldset class="schedule-days" data-schedule-days="{{schedule3ActiveDaysMask}}" data-schedule-prefix="schedule3"><legend>Active days</legend></fieldset>
+                            <label for="schedule3StartType">Start source</label>
+                            <select id="schedule3StartType" name="schedule3StartType">
+                                <option value="0" {{schedule3StartTypeFixedSelected}}>Fixed time</option>
+                                <option value="1" {{schedule3StartTypeSunriseSelected}}>Sunrise</option>
+                                <option value="2" {{schedule3StartTypeSunsetSelected}}>Sunset</option>
+                            </select>
+                            <label for="schedule3StartHour">Start (local)</label>
+                            <div class="actions">
+                                <input type="number" id="schedule3StartHour" name="schedule3StartHour" min="0" max="23" value="{{schedule3StartHour}}">
+                                <input type="number" name="schedule3StartMinute" min="0" max="59" value="{{schedule3StartMinute}}">
+                            </div>
+                            <label for="schedule3StartOffsetMinutes">Start offset (min)</label>
+                            <input type="number" id="schedule3StartOffsetMinutes" name="schedule3StartOffsetMinutes" min="-720" max="720" value="{{schedule3StartOffsetMinutes}}">
+                            <label for="schedule3EndType">End source</label>
+                            <select id="schedule3EndType" name="schedule3EndType">
+                                <option value="0" {{schedule3EndTypeFixedSelected}}>Fixed time</option>
+                                <option value="1" {{schedule3EndTypeSunriseSelected}}>Sunrise</option>
+                                <option value="2" {{schedule3EndTypeSunsetSelected}}>Sunset</option>
+                            </select>
+                            <label for="schedule3EndHour">End (local)</label>
+                            <div class="actions">
+                                <input type="number" id="schedule3EndHour" name="schedule3EndHour" min="0" max="23" value="{{schedule3EndHour}}">
+                                <input type="number" name="schedule3EndMinute" min="0" max="59" value="{{schedule3EndMinute}}">
+                            </div>
+                            <label for="schedule3EndOffsetMinutes">End offset (min)</label>
+                            <input type="number" id="schedule3EndOffsetMinutes" name="schedule3EndOffsetMinutes" min="-720" max="720" value="{{schedule3EndOffsetMinutes}}">
+                            <label for="schedule3DutyPercent">PWM %</label>
+                            <input type="number" id="schedule3DutyPercent" name="schedule3DutyPercent" min="0" max="100" value="{{schedule3DutyPercent}}">
+                            </div>
+                            </div>
+                            <div class="schedule-slot">
+                                <h4>Schedule 2</h4>
+                                <label><input type="checkbox" name="schedule3Slot2Enabled" data-schedule-enabled="2" {{schedule3Slot2EnabledChecked}}>Enable schedule</label>
+                                <div data-schedule-config="2">
+                                    <fieldset class="schedule-days" data-schedule-days="{{schedule3Slot2ActiveDaysMask}}" data-schedule-prefix="schedule3Slot2"><legend>Active days</legend></fieldset>
+                                    <label for="schedule3Slot2StartType">Start source</label>
+                                    <select id="schedule3Slot2StartType" name="schedule3Slot2StartType"><option value="0" {{schedule3Slot2StartTypeFixedSelected}}>Fixed time</option><option value="1" {{schedule3Slot2StartTypeSunriseSelected}}>Sunrise</option><option value="2" {{schedule3Slot2StartTypeSunsetSelected}}>Sunset</option></select>
+                                    <label for="schedule3Slot2StartHour">Start (local)</label>
+                                    <div class="actions"><input type="number" id="schedule3Slot2StartHour" name="schedule3Slot2StartHour" min="0" max="23" value="{{schedule3Slot2StartHour}}"><input type="number" name="schedule3Slot2StartMinute" min="0" max="59" value="{{schedule3Slot2StartMinute}}"></div>
+                                    <label for="schedule3Slot2StartOffsetMinutes">Start offset (min)</label><input type="number" id="schedule3Slot2StartOffsetMinutes" name="schedule3Slot2StartOffsetMinutes" min="-720" max="720" value="{{schedule3Slot2StartOffsetMinutes}}">
+                                    <label for="schedule3Slot2EndType">End source</label>
+                                    <select id="schedule3Slot2EndType" name="schedule3Slot2EndType"><option value="0" {{schedule3Slot2EndTypeFixedSelected}}>Fixed time</option><option value="1" {{schedule3Slot2EndTypeSunriseSelected}}>Sunrise</option><option value="2" {{schedule3Slot2EndTypeSunsetSelected}}>Sunset</option></select>
+                                    <label for="schedule3Slot2EndHour">End (local)</label>
+                                    <div class="actions"><input type="number" id="schedule3Slot2EndHour" name="schedule3Slot2EndHour" min="0" max="23" value="{{schedule3Slot2EndHour}}"><input type="number" name="schedule3Slot2EndMinute" min="0" max="59" value="{{schedule3Slot2EndMinute}}"></div>
+                                    <label for="schedule3Slot2EndOffsetMinutes">End offset (min)</label><input type="number" id="schedule3Slot2EndOffsetMinutes" name="schedule3Slot2EndOffsetMinutes" min="-720" max="720" value="{{schedule3Slot2EndOffsetMinutes}}">
+                                    <label for="schedule3Slot2DutyPercent">PWM %</label><input type="number" id="schedule3Slot2DutyPercent" name="schedule3Slot2DutyPercent" min="0" max="100" value="{{schedule3Slot2DutyPercent}}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <input type="submit" value="Save schedule">
+                    </div>
+                </form>
+                <form action="/resetScheduleConfig" method="POST">
+                    <div class="actions">
+                        <input type="submit" value="Reset schedule">
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="/portal/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" type="image/png" href="./../Solar.png">
+    <title>Diagnostiques Station Solaire</title>
+    <style>
+        :root {
+            --bg0: #f3f1e8;
+            --bg1: #fffdf7;
+            --ink: #2e2a22;
+            --muted: #6a6356;
+            --accent: #0b7a75;
+            --accent-2: #b65f32;
+            --ok: #2f7a45;
+            --warn: #8c4d00;
+            --card-shadow: 0 14px 32px rgba(64, 52, 36, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(1200px 600px at 15% -10%, rgba(182, 95, 50, 0.12), transparent 60%),
+                radial-gradient(1200px 800px at 110% 110%, rgba(11, 122, 117, 0.14), transparent 65%),
+                linear-gradient(180deg, var(--bg1), var(--bg0));
+            padding: 24px;
+        }
+
+        .wrap {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(125, 111, 90, 0.25);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(4px);
+        }
+
+        h1, h2 {
+            margin: 0 0 12px;
+            line-height: 1.2;
+        }
+
+        h1 { font-size: 1.7rem; }
+        h2 { font-size: 1.1rem; }
+
+        .subtle {
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .status {
+            display: grid;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .status-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            border-bottom: 1px dashed rgba(110, 90, 70, 0.22);
+            padding-bottom: 6px;
+        }
+
+        .status-line span:first-child {
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        input[type=number] {
+            width: 100%;
+            border: 1px solid #c8bea9;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.98rem;
+            background: #fff;
+            color: var(--ink);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        button, .link-btn {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .primary { background: var(--accent); }
+        .danger { background: var(--accent-2); }
+        .ghost { background: #7c7465; }
+
+        .result {
+            margin-top: 12px;
+            min-height: 22px;
+            font-size: 0.95rem;
+            color: var(--warn);
+        }
+
+        .result.ok {
+            color: var(--ok);
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 12px; }
+            .card { padding: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <section class="card">
+            <h1>Diagnostiques - Test Position Manuel</h1>
+            <p class="subtle">Utilisez cette page pour forcer la position du panneau pendant les tests et pour surveiller les commutateurs ainsi que les entrées de défaut du moteur pas à pas. L'annulation du test ramène le panneau à la position solaire actuellement calculée.</p>
+        </section>
+
+        <section class="card">
+            <h2>Status présent</h2>
+            <div class="status">
+                <div class="status-line"><span>Temps locale</span><strong id="timeValue">{{localDateTime}}</strong></div>
+                <div class="status-line"><span>Test position manuel</span><strong id="overrideValue">{{trackingOverrideStatus}}</strong></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Diagnostiques Matériels</h2>
+            <div class="status">
+                <div class="status-line"><span>Commutateurs de fin de course</span><strong id="limitsValue">{{limitSwitchSummary}}</strong></div>
+                <div class="status-line"><span>DIAG Pas à pas</span><strong id="stepperDiagValue">{{stepperDiagSummary}}</strong></div>
+                <div class="status-line"><span>L1 / L2</span><strong>{{limit1State}} / {{limit2State}}</strong></div>
+                <div class="status-line"><span>L3 / L4</span><strong>{{limit3State}} / {{limit4State}}</strong></div>
+                <div class="status-line"><span>D1 / D2 / D3</span><strong>{{diag1State}} / {{diag2State}} / {{diag3State}}</strong></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Test de position manuel</h2>
+            <form id="overrideForm">
+                <div class="grid">
+                    <div>
+                        <label for="azimuth">Azimuth (deg)</label>
+                        <input type="number" id="azimuth" name="azimuth" step="0.1" required>
+                    </div>
+                    <div>
+                        <label for="elevation">Elevation (deg)</label>
+                        <input type="number" id="elevation" name="elevation" step="0.1" required>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="primary" type="submit">Appliquer les dérogations</button>
+                    <button class="danger" type="button" id="cancelBtn">Annuler le test et retour</button>
+                    <a class="link-btn ghost" href="/">Retour à la page principale</a>
+                </div>
+            </form>
+            <div id="result" class="result"></div>
+        </section>
+    </div>
+
+    <script>
+        async function refreshStatus() {
+            try {
+                const res = await fetch('/diag/status', { cache: 'no-store' });
+                if(!res.ok) {
+                    return;
+                }
+
+                const text = await res.text();
+                const lines = text.split('\n');
+                const data = {};
+
+                lines.forEach(line => {
+                    const idx = line.indexOf('=');
+                    if(idx > 0) {
+                        const key = line.substring(0, idx).trim();
+                        const value = line.substring(idx + 1).trim();
+                        data[key] = value;
+                    }
+                });
+
+                if(data.time) document.getElementById('timeValue').textContent = data.time;
+                if(data.override) document.getElementById('overrideValue').textContent = data.override;
+                if(data.limits) document.getElementById('limitsValue').textContent = data.limits;
+                if(data.stepperDiag) document.getElementById('stepperDiagValue').textContent = data.stepperDiag;
+            }
+            catch(_) {
+                // Keep previous values if refresh fails.
+            }
+        }
+
+        async function setResult(message, ok) {
+            const el = document.getElementById('result');
+            el.textContent = message;
+            el.className = ok ? 'result ok' : 'result';
+            await refreshStatus();
+        }
+
+        document.getElementById('overrideForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const azimuth = document.getElementById('azimuth').value;
+            const elevation = document.getElementById('elevation').value;
+            const body = new URLSearchParams({ azimuth, elevation });
+
+            const res = await fetch('/setTrackingOverride', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body
+            });
+
+            const text = await res.text();
+            await setResult(text, res.ok);
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', async () => {
+            const res = await fetch('/cancelTrackingOverride', {
+                method: 'POST'
+            });
+
+            const text = await res.text();
+            await setResult(text, res.ok);
+        });
+
+        refreshStatus();
+        setInterval(refreshStatus, 2000);
+    </script>
+</body>
+</html>

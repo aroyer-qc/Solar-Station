@@ -1,0 +1,308 @@
+:root {
+    --bg: #f0ebe1;
+    --panel: rgba(255, 250, 243, 0.94);
+    --line: #d8c6ae;
+    --ink: #1f2d26;
+    --muted: #5e6b60;
+    --accent: #1e6f62;
+    --accent-2: #c36b36;
+    --accent-3: #284f8f;
+    --good: #2f7744;
+    --bad: #9a4125;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background:
+        linear-gradient(135deg, rgba(195, 107, 54, 0.12), transparent 35%),
+        radial-gradient(circle at 100% 0%, rgba(30, 111, 98, 0.18), transparent 32%),
+        linear-gradient(180deg, #faf5ee 0%, var(--bg) 100%);
+}
+
+.shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    gap: 18px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 14px 36px rgba(61, 46, 31, 0.10);
+    backdrop-filter: blur(6px);
+}
+
+.hero {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+}
+
+h1, h2, h3 {
+    margin: 0 0 12px;
+}
+
+p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.stats {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    margin-top: 16px;
+}
+
+.stat {
+    background: #fff;
+    border: 1px solid #eadfce;
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.stat strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 1.2rem;
+    color: var(--ink);
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.tabs button {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    cursor: pointer;
+    background: #e5d8c5;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.tabs button.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.tab {
+    display: none;
+}
+
+.tab.active {
+    display: block;
+}
+
+.grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+label {
+    display: block;
+    margin-top: 12px;
+    font-weight: 700;
+}
+
+input[type=text],
+input[type=password],
+input[type=number],
+select {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+}
+
+input[type=checkbox] {
+    margin-right: 8px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+button.action,
+input[type=submit] {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+    background: var(--accent);
+}
+
+button.warning {
+    background: var(--accent-2);
+}
+
+button.secondary {
+    background: var(--accent-3);
+}
+
+.statusline {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(94, 73, 55, 0.20);
+}
+
+.statusline:last-child {
+    border-bottom: 0;
+}
+
+.callout {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #eadfce;
+}
+
+.message {
+    min-height: 24px;
+    margin-top: 14px;
+    font-weight: 700;
+    color: var(--bad);
+}
+
+.message.ok {
+    color: var(--good);
+}
+
+.output-card {
+    background: #fff;
+    border: 1px solid #eadfce;
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.schedule-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr;
+}
+
+.schedule-panel {
+    margin-top: 16px;
+    padding: 16px;
+}
+
+.schedule-output-card {
+    padding: 16px;
+}
+
+.schedule-columns {
+    margin-top: 12px;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.schedule-slot,
+.schedule-meta {
+    border: 1px solid #eadfce;
+    border-radius: 12px;
+    background: #faf6ef;
+    padding: 10px;
+}
+
+.schedule-slot-header {
+    margin-top: 0;
+}
+
+.schedule-slot-body {
+    margin-top: 8px;
+}
+
+.schedule-slot-body.is-hidden {
+    display: none;
+}
+
+.schedule-slot-body label:first-child {
+    margin-top: 0;
+}
+
+.schedule-meta {
+    display: flex;
+    align-items: flex-start;
+}
+
+.schedule-meta .callout {
+    width: 100%;
+    margin-top: 0;
+}
+
+.schedule-conflict {
+    color: var(--bad);
+    border-color: rgba(154, 65, 37, 0.35);
+    background: #fff2ed;
+    font-weight: 700;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.logs-table-wrap {
+    margin-top: 12px;
+    overflow-x: auto;
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #eadfce;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.logs-table th,
+.logs-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0e7dc;
+    white-space: nowrap;
+}
+
+.logs-table th {
+    background: #f7efe4;
+    font-weight: 700;
+}
+
+.logs-table tr:last-child td {
+    border-bottom: 0;
+}
+
+@media (max-width: 860px) {
+    .hero {
+        grid-template-columns: 1fr;
+    }
+
+    .schedule-columns {
+        grid-template-columns: 1fr;
+    }
+}

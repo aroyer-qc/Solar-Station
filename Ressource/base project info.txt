@@ -1,0 +1,39 @@
+https://www.youtube.com/watch?v=VaNVrE7-AO8
+
+voir 9:30 pour savoir ou mettre arduino esp32fs-plugin
+voir 21:00 pour savoir comment prendre une chart.js et la copier dans notre propre code
+
+
+should see this : https://github.com/jblance/mpp-solar/tree/master
+and this: https://github.com/cordelster/mppsolar_dashboards
+
+https://github.com/HDwayne/SolarTracker
+
+MC Series Register Map Overview
+The MC Series (e.g., MC2420N10, MC2430N10, MC2440N10, MC2450N10) supports Modbus RTU communication via RS485.
+
+ Here's a summary of key registers based on the official User manuals:
+ Configuration Registers
+ Register | Description              | Values / Range                         | 
+ n01      | Battery Type             | 0: Sealed, 1: Gel, 2: Flooded, 3: User | 
+ n02      | Equalization Voltage     | 12V: 14.8V, 24V: 29.6V                 | 
+ n03      | Boost Voltage            | 12V: 14.4V, 24V: 28.8V                 | 
+ n04      | Float Voltage            | 12V: 13.8V, 24V: 27.6V                 | 
+ n05      | Boost Duration           | 10–120 min                             | 
+ n06      | Equalization Duration    | 10–120 min                             | 
+ n07      | Temperature Compensation | -3 to 0 mV/°C/cell                     | 
+ n08      | System Voltage           | 0: Auto, 1: 12V, 2: 24V                | 
+ n09      | Max Charging Current     | 10A–50A depending on model             | 
+
+
+Monitoring Registers
+ Register | Description            | 
+ n30      | Battery Voltage        | 
+ n31      | PV Input Voltage       | 
+ n32      | Charging Current       | 
+ n33      | Load Current           | 
+ n34      | Controller Temperature | 
+ n35      | Battery Temperature    | 
+ n36      | Charging Power         | 
+ n37      | Load Power             | 
+These registers allow you to monitor real-time performance and adjust charging behavior.
