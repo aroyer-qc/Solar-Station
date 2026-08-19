@@ -1,19 +1,18 @@
 # SolarStation
 
-ESP32-based solar station firmware for panel positioning, output scheduling, diagnostics, and network control.
-
-This README reflects the current project status after the latest firmware refactor.
+ESP32-based solar station firmware for two-axis panel positioning, output scheduling, diagnostics, and network control. The firmware is designed for the Solar Station control PCB; its third stepper channel is currently unused by this project.
 
 ## Current Status
 
-The project is in an active integration phase.
+The firmware is in an active integration phase.
 
 Implemented and working in firmware:
 
-- FastAccelStepper integration with 3 stepper channels initialized in hardware.
+- FastAccelStepper integration with the PCB's 3 available stepper channels.
 - Axis control on real steppers:
 	- Azimuth controller uses Stepper1.
 	- Elevation controller uses Stepper2.
+	- Stepper3 is currently unused and available for future or other control applications.
 - Configurable axis parameters (persisted):
 	- Min/max angle limits.
 	- Steps-per-degree ratio.
@@ -39,16 +38,49 @@ Implemented and working in firmware:
 	- Dedicated page (`/diag` and `/portal/diag`) to force azimuth/elevation for testing.
 	- Canceling test mode returns panel to current calculated solar position.
 
+## Testing Without Optional Hardware
+
+The firmware includes compile-time switches for testing on an ESP32 without all of the connected hardware. In `Solar-Station.ino`, set any unavailable hardware feature to `0` before compiling:
+
+```cpp
+#define USE_BH1750_SENSOR 0  // Disable the BH1750 light sensor
+#define USE_IO_EXPANDER   0  // Disable the PCA9538 I2C I/O expander
+#define USE_M95P32        0  // Disable the M95P32 external SPI EEPROM
+```
+
+Available hardware switches:
+
+- `USE_BH1750_SENSOR`: BH1750 light sensor support; default is `1`.
+- `USE_IO_EXPANDER`: PCA9538 I2C I/O expander support; default is `1`.
+- `USE_M95P32`: M95P32 external SPI EEPROM support; default is `1`.
+
+Disable only the hardware that is not connected. With a feature disabled, its driver is excluded from the build and the related initialization and access code is skipped. The ESP32, firmware logic, web interface, and other enabled features can then be tested independently.
+
+## Control PCB
+
+The firmware is designed for the ESP32-based Solar Station control PCB shown below. The PCB can also be reused for other automation and control projects because it provides:
+
+![Solar Station control PCB](PCB.png)
+
+- Three stepper motor controller channels; this project uses two for azimuth and elevation, while the third is currently unused.
+- Inputs for switches such as limit switches and other digital status signals.
+- Three MOSFET-controlled outputs that use the connected 12 V to 36 V power supply.
+- One I2C port.
+- One communication port.
+- 3.3 V logic levels for the I2C and communication ports.
+
+Check the electrical requirements of each connected motor, switch, and load before use. The MOSFET outputs switch the board's power-supply voltage, while the I2C and communication interfaces use 3.3 V logic.
+
 ## Hardware Notes (Current Wiring Assumptions)
 
 - MCU: ESP32.
-- Stepper drivers: TMC2209 (3 channels).
+- Stepper drivers: TMC2209 (3 channels; two used by this project, one available).
 - I/O expander: PCA9538 (I2C) for shared microstep pins, status LED, and limit switch inputs.
 - External SPI EEPROM module support included (`M95PxxModule`).
 
 ## Main Runtime Modules
 
-- `SolarStation.ino`: orchestration, hardware init, scheduler, diagnostics helpers, sunset return, test override state.
+- `Solar-Station.ino`: orchestration, hardware init, scheduler, diagnostics helpers, sunset return, test override state.
 - `ConfigModule.h` / `ConfigModule.ino`: persisted configuration storage and defaults.
 - `AzimuthController.*`: azimuth axis control on FastAccelStepper.
 - `ElevationController.*`: elevation axis control on FastAccelStepper.
@@ -114,7 +146,7 @@ To build on another computer:
 
 1. Install Arduino IDE 2.x.
 2. Install `esp32` board platform in Boards Manager.
-3. Open `SolarStation.ino` from this project folder (do not copy only the `.ino` file).
+3. Open `Solar-Station.ino` from this project folder (do not copy only the `.ino` file).
 4. Compile directly; do not install another conflicting `ESPAsyncWebServer` manually unless you intentionally want to replace the bundled one.
 
 Recommended:
@@ -123,7 +155,7 @@ Recommended:
 
 ## Known Limitations / Work In Progress
 
-- Some legacy/placeholder areas are still under cleanup.
+- Legacy configuration compatibility paths and placeholder-based HTML binding remain in the codebase.
 - Arduino IntelliSense can report false compile errors in editor context even when firmware logic is valid.
 - Full production solar tracking loop policy (beyond targeted move and preposition behavior) may still need refinement for final deployment scenarios.
 
@@ -138,5 +170,7 @@ Recommended:
 - Verify sunset return preposition occurs after sunset + fixed delay.
 
 ## License
+
+This project is released under the [MIT License](https://opensource.org/license/mit/).
 
 Project files contain their own headers where applicable.
