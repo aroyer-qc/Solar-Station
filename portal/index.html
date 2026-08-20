@@ -216,8 +216,8 @@
             font-weight: 600;
         }
         .nav .tablink.active {
-            background: var(--accent);
-            color: #fff;
+            background: #eadfc7;
+            color: var(--ink);
         }
         .tabcontent { display: none; }
         .tabcontent.active { display: block; }
@@ -307,13 +307,15 @@
         .range-bad {
             color: #bf1e1e;
         }
-        input[type=submit], button.action {
+        input[type=submit], button.action, a.action {
             border: 0;
             border-radius: 10px;
             padding: 10px 16px;
             background: var(--accent);
             color: #fff;
             cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
         }
         button.action.is-current-state {
             box-shadow:
@@ -348,8 +350,13 @@
                 <h1>SolarStation</h1>
                 <p class="subtle">Current hardware dashboard and configuration entry point. This page is intentionally aligned with the routes that exist today, so it stays maintainable while the control, schedule, and graph pages are added.</p>
                 <div class="actions">
+                    <a class="action" href="/portal/config">Configuration</a>
+                    <a class="action" href="/portal/network">Network</a>
+                    <a class="action" href="/portal/outputs">Outputs</a>
+                    <a class="action" href="/diag">Diagnostics</a>
+                </div>
+                <div class="actions">
                     <button class="action warning" onclick="restartSystem()">Restart system</button>
-                    <button class="action" onclick="window.location.href='/diag'">Diagnostics</button>
                 </div>
             </div>
             <div class="panel">
@@ -419,6 +426,7 @@
                 <div class="stat">
                     Calculated elevation
                     <strong data-live-key="calcElev">{{calcElev}}</strong>
+                    <span class="mini" id="calcElevMinInfo" data-elevation-min-value="{{elevDegMin}}">Min: {{elevDegMin}} °</span>
                 </div>
                 <div class="stat">
                     Output 1
@@ -438,13 +446,8 @@
             </div>
         </section>
 
-        <nav class="nav">
-            <a class="tablink active" data-tab="config" href="/portal/config">Configuration</a>
-            <a class="tablink" data-tab="network" href="/portal/network">Network</a>
-            <a class="tablink" data-tab="outputs" href="/portal/outputs">Outputs</a>
-        </nav>
-
     </div>
 
-    <script src="/portal/app.js"></script>`r`n</body>
+    <script src="/portal/app.js"></script>
+</body>
 </html>

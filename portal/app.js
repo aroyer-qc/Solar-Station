@@ -150,6 +150,25 @@ function parseDegreesFromSummary(value) {
     return match ? Number(match[0]) : Number.NaN;
 }
 
+function normalizeDegreeLabel(value) {
+    if (typeof value !== 'string') return value;
+    return value.replace(/\s*\bdeg\b/gi, ' \u00b0').replace(/\s+/g, ' ').trim();
+}
+
+function getConfiguredElevationMin() {
+    const minInfo = document.getElementById('calcElevMinInfo');
+    if (!minInfo) return Number.NaN;
+    return parseDegreesFromSummary(minInfo.dataset.elevationMinValue || minInfo.textContent || '');
+}
+
+function updateElevationMinimumIndicator() {
+    const minInfo = document.getElementById('calcElevMinInfo');
+    if (!minInfo) return;
+    const configuredMin = getConfiguredElevationMin();
+    if (!Number.isFinite(configuredMin)) return;
+    minInfo.textContent = `Min: ${configuredMin.toFixed(1)} \u00b0`;
+}
+
 function setRangeClass(field, inRange) {
     if (!field) return;
     field.classList.remove('range-ok', 'range-bad');
@@ -168,8 +187,9 @@ function updateCalculatedRangeIndicator() {
     const minAzimuth = parseDegreesFromSummary(min?.textContent || '');
     const maxAzimuth = parseDegreesFromSummary(max?.textContent || '');
     const maxElevation = parseDegreesFromSummary(elMax?.textContent || '');
+    const minElevation = getConfiguredElevationMin();
     setRangeClass(az, Number.isFinite(azimuth) && Number.isFinite(minAzimuth) && Number.isFinite(maxAzimuth) && azimuth >= minAzimuth && azimuth <= maxAzimuth);
-    setRangeClass(el, Number.isFinite(elevation) && Number.isFinite(maxElevation) && elevation >= 0 && elevation <= maxElevation);
+    setRangeClass(el, Number.isFinite(elevation) && Number.isFinite(minElevation) && Number.isFinite(maxElevation) && elevation >= minElevation && elevation <= maxElevation);
 }
 
 function updateMpptLinkLed() {
@@ -182,7 +202,12 @@ function updateMpptLinkLed() {
 }
 
 function applyLiveData(data) {
-    liveFields.forEach((field) => { const key = field.dataset.liveKey; if (key && key in data) field.textContent = data[key]; });
+    liveFields.forEach((field) => {
+        const key = field.dataset.liveKey;
+        if (!(key && key in data)) return;
+        const value = String(data[key]);
+        field.textContent = normalizeDegreeLabel(value);
+    });
     updateMpptLinkLed(); updateCalculatedRangeIndicator();
     [1, 2, 3].forEach((outputIndex) => {
         const toggle = document.querySelector(`[data-output-manual-toggle="${outputIndex}"]`);
@@ -237,6 +262,6 @@ if (tabFromPath && document.getElementById(tabFromPath)) {
 }
 initializeOutputControlsFromMode(); initializeOutputActionForms(); initializeScheduleDaySelectors(); initializeScheduleControls();
 [stepper1MotorStepsPerRevolutionInput, stepper2MotorStepsPerRevolutionInput, stepperMicrostepModeInput, azimuthGearReductionInput, elevationGearReductionInput].forEach((input) => { if (input) { input.addEventListener('input', refreshComputedStepsPerDegree); input.addEventListener('change', refreshComputedStepsPerDegree); } });
-refreshComputedStepsPerDegree(); updateMpptLinkLed(); updateCalculatedRangeIndicator();
+refreshComputedStepsPerDegree(); updateElevationMinimumIndicator(); updateMpptLinkLed(); updateCalculatedRangeIndicator();
 async function scheduleLiveDataRefresh() { await refreshLiveData(); window.setTimeout(scheduleLiveDataRefresh, REFRESH_INTERVAL_MS); }
 scheduleLiveDataRefresh();
