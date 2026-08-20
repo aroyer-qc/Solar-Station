@@ -155,6 +155,12 @@ function normalizeDegreeLabel(value) {
     return value.replace(/\s*\bdeg\b/gi, ' \u00b0').replace(/\s+/g, ' ').trim();
 }
 
+function normalizeExistingLiveFieldLabels() {
+    liveFields.forEach((field) => {
+        field.textContent = normalizeDegreeLabel(field.textContent || '');
+    });
+}
+
 function getConfiguredElevationMin() {
     const minInfo = document.getElementById('calcElevMinInfo');
     if (!minInfo) return Number.NaN;
@@ -270,6 +276,6 @@ if (tabFromPath && document.getElementById(tabFromPath)) {
 }
 initializeOutputControlsFromMode(); initializeOutputActionForms(); initializeScheduleDaySelectors(); initializeScheduleControls();
 [stepper1MotorStepsPerRevolutionInput, stepper2MotorStepsPerRevolutionInput, stepperMicrostepModeInput, azimuthGearReductionInput, elevationGearReductionInput].forEach((input) => { if (input) { input.addEventListener('input', refreshComputedStepsPerDegree); input.addEventListener('change', refreshComputedStepsPerDegree); } });
-refreshComputedStepsPerDegree(); updateElevationMinimumIndicator(); updateMpptLinkLed(); updateCalculatedRangeIndicator();
+refreshComputedStepsPerDegree(); normalizeExistingLiveFieldLabels(); updateElevationMinimumIndicator(); updateMpptLinkLed(); updateCalculatedRangeIndicator();
 async function scheduleLiveDataRefresh() { await refreshLiveData(); window.setTimeout(scheduleLiveDataRefresh, REFRESH_INTERVAL_MS); }
 scheduleLiveDataRefresh();
