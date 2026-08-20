@@ -172,7 +172,7 @@ function updateElevationMinimumIndicator() {
 function updateElevationMinimumVisibility(isBelowMinimum) {
     const minInfo = document.getElementById('calcElevMinInfo');
     if (!minInfo) return;
-    minInfo.hidden = !isBelowMinimum;
+    minInfo.style.display = isBelowMinimum ? 'block' : 'none';
 }
 
 function setRangeClass(field, inRange) {
