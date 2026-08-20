@@ -60,8 +60,13 @@ int8_t AzimuthController::init()
     if(cfgAccel > 65535u) { cfgAccel = 65535u; }
     stepAcceleration = (uint16_t)cfgAccel;
 
-    azimuthDegMinDeci = 0u;
-    azimuthDegMaxDeci = 3600u;
+    azimuthDegMinDeci = DegToDeciDeg((float)Config.GetAzimuthDegMin());
+    azimuthDegMaxDeci = DegToDeciDeg((float)Config.GetAzimuthDegMax());
+    if(azimuthDegMaxDeci <= azimuthDegMinDeci)
+    {
+        azimuthDegMinDeci = 0u;
+        azimuthDegMaxDeci = 3600u;
+    }
 
     uint32_t cfgThreshold = Config.GetAzimuthTimeThreshold();
     if(cfgThreshold > 65535u) { cfgThreshold = 65535u; }
@@ -99,8 +104,13 @@ int16_t AzimuthController::moveToAngle(uint16_t targetAzimuthDeciDeg)
         return -1;
     }
 
-    azimuthDegMinDeci = 0u;
-    azimuthDegMaxDeci = 3600u;
+    azimuthDegMinDeci = DegToDeciDeg((float)Config.GetAzimuthDegMin());
+    azimuthDegMaxDeci = DegToDeciDeg((float)Config.GetAzimuthDegMax());
+    if(azimuthDegMaxDeci <= azimuthDegMinDeci)
+    {
+        azimuthDegMinDeci = 0u;
+        azimuthDegMaxDeci = 3600u;
+    }
 
     uint32_t cfgThreshold = Config.GetAzimuthTimeThreshold();
     if(cfgThreshold > 65535u) { cfgThreshold = 65535u; }

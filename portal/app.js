@@ -169,6 +169,12 @@ function updateElevationMinimumIndicator() {
     minInfo.textContent = `Min: ${configuredMin.toFixed(1)} \u00b0`;
 }
 
+function updateElevationMinimumVisibility(isBelowMinimum) {
+    const minInfo = document.getElementById('calcElevMinInfo');
+    if (!minInfo) return;
+    minInfo.hidden = !isBelowMinimum;
+}
+
 function setRangeClass(field, inRange) {
     if (!field) return;
     field.classList.remove('range-ok', 'range-bad');
@@ -188,8 +194,10 @@ function updateCalculatedRangeIndicator() {
     const maxAzimuth = parseDegreesFromSummary(max?.textContent || '');
     const maxElevation = parseDegreesFromSummary(elMax?.textContent || '');
     const minElevation = getConfiguredElevationMin();
+    const isElevationInRange = Number.isFinite(elevation) && Number.isFinite(minElevation) && Number.isFinite(maxElevation) && elevation >= minElevation && elevation <= maxElevation;
     setRangeClass(az, Number.isFinite(azimuth) && Number.isFinite(minAzimuth) && Number.isFinite(maxAzimuth) && azimuth >= minAzimuth && azimuth <= maxAzimuth);
-    setRangeClass(el, Number.isFinite(elevation) && Number.isFinite(minElevation) && Number.isFinite(maxElevation) && elevation >= minElevation && elevation <= maxElevation);
+    setRangeClass(el, isElevationInRange);
+    updateElevationMinimumVisibility(Number.isFinite(elevation) && Number.isFinite(minElevation) && elevation < minElevation);
 }
 
 function updateMpptLinkLed() {
