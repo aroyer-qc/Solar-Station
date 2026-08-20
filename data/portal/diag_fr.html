@@ -192,6 +192,11 @@
     </div>
 
     <script>
+        function normalizeDegreeLabel(value) {
+            const text = String(value ?? '');
+            return text.replace(/\s*\bdeg\b/gi, ' \u00b0').replace(/\s+/g, ' ').trim();
+        }
+
         async function refreshStatus() {
             try {
                 const res = await fetch('/diag/status', { cache: 'no-store' });
@@ -212,10 +217,10 @@
                     }
                 });
 
-                if(data.time) document.getElementById('timeValue').textContent = data.time;
-                if(data.override) document.getElementById('overrideValue').textContent = data.override;
-                if(data.limits) document.getElementById('limitsValue').textContent = data.limits;
-                if(data.stepperDiag) document.getElementById('stepperDiagValue').textContent = data.stepperDiag;
+                if(data.time) document.getElementById('timeValue').textContent = normalizeDegreeLabel(data.time);
+                if(data.override) document.getElementById('overrideValue').textContent = normalizeDegreeLabel(data.override);
+                if(data.limits) document.getElementById('limitsValue').textContent = normalizeDegreeLabel(data.limits);
+                if(data.stepperDiag) document.getElementById('stepperDiagValue').textContent = normalizeDegreeLabel(data.stepperDiag);
             }
             catch(_) {
                 // Keep previous values if refresh fails.
@@ -224,7 +229,7 @@
 
         async function setResult(message, ok) {
             const el = document.getElementById('result');
-            el.textContent = message;
+            el.textContent = normalizeDegreeLabel(message);
             el.className = ok ? 'result ok' : 'result';
             await refreshStatus();
         }
