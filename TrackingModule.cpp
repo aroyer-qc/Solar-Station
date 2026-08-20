@@ -634,7 +634,7 @@ String GetCalculatedAzimuthSummary()
         return "Unavailable";
     }
 
-    return String(azimuthDeg, 1) + " deg";
+    return String(azimuthDeg, 1) + " °";
 }
 
 String GetCalculatedElevationSummary()
@@ -651,7 +651,7 @@ String GetCalculatedElevationSummary()
         return "Unavailable";
     }
 
-    return String(elevationDeg, 1) + " deg";
+    return String(elevationDeg, 1) + " °";
 }
 
 String GetTodayAzimuthMinSummary()
@@ -663,7 +663,7 @@ String GetTodayAzimuthMinSummary()
         return "Waiting for NTP";
     }
 
-    return String(minAzimuthDeg, 1) + " deg";
+    return String(minAzimuthDeg, 1) + " °";
 }
 
 String GetTodayAzimuthMaxSummary()
@@ -675,7 +675,7 @@ String GetTodayAzimuthMaxSummary()
         return "Waiting for NTP";
     }
 
-    return String(maxAzimuthDeg, 1) + " deg";
+    return String(maxAzimuthDeg, 1) + " °";
 }
 
 String GetTodayElevationMaxSummary()
@@ -709,7 +709,7 @@ String GetTodayElevationMaxSummary()
         cachedElevationMax = calculatedElevationMax;
     }
 
-    return String(cachedElevationMax, 1) + " deg";
+    return String(cachedElevationMax, 1) + " °";
 }
 
 String GetTrackingOverrideStatusSummary()
