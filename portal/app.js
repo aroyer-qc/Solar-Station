@@ -215,6 +215,14 @@ function updateMpptLinkLed() {
     led.classList.add(status === 'OK' ? 'led-ok' : (['ERROR', 'TIMEOUT', 'CRC'].includes(status) ? 'led-error' : 'led-waiting'));
 }
 
+function updateLocalTimeLed() {
+    const led = document.getElementById('localTimeLed');
+    if (!led) return;
+    const validity = (led.dataset.timeValid || '').trim();
+    led.classList.remove('led-waiting', 'led-ok', 'led-error');
+    led.classList.add(validity === '1' ? 'led-ok' : (validity === '0' ? 'led-error' : 'led-waiting'));
+}
+
 function applyLiveData(data) {
     liveFields.forEach((field) => {
         const key = field.dataset.liveKey;
@@ -222,7 +230,11 @@ function applyLiveData(data) {
         const value = String(data[key]);
         field.textContent = normalizeDegreeLabel(value);
     });
-    updateMpptLinkLed(); updateCalculatedRangeIndicator();
+    if ('timeValid' in data) {
+        const led = document.getElementById('localTimeLed');
+        if (led) led.dataset.timeValid = String(data.timeValid);
+    }
+    updateMpptLinkLed(); updateLocalTimeLed(); updateCalculatedRangeIndicator();
     [1, 2, 3].forEach((outputIndex) => {
         const toggle = document.querySelector(`[data-output-manual-toggle="${outputIndex}"]`);
         if (!toggle) return;
@@ -276,6 +288,6 @@ if (tabFromPath && document.getElementById(tabFromPath)) {
 }
 initializeOutputControlsFromMode(); initializeOutputActionForms(); initializeScheduleDaySelectors(); initializeScheduleControls();
 [stepper1MotorStepsPerRevolutionInput, stepper2MotorStepsPerRevolutionInput, stepperMicrostepModeInput, azimuthGearReductionInput, elevationGearReductionInput].forEach((input) => { if (input) { input.addEventListener('input', refreshComputedStepsPerDegree); input.addEventListener('change', refreshComputedStepsPerDegree); } });
-refreshComputedStepsPerDegree(); normalizeExistingLiveFieldLabels(); updateElevationMinimumIndicator(); updateMpptLinkLed(); updateCalculatedRangeIndicator();
+refreshComputedStepsPerDegree(); normalizeExistingLiveFieldLabels(); updateElevationMinimumIndicator(); updateMpptLinkLed(); updateLocalTimeLed(); updateCalculatedRangeIndicator();
 async function scheduleLiveDataRefresh() { await refreshLiveData(); window.setTimeout(scheduleLiveDataRefresh, REFRESH_INTERVAL_MS); }
 scheduleLiveDataRefresh();

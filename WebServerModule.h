@@ -58,6 +58,7 @@ class WebServerModule
         String          getWifiModeLabel                    ();
         String          getWifiConnectionStatusLabel        ();
         String          getWifiDisplayValue                 (const char* value, bool automaticWhenDhcp) const;
+        String          getCurrentWifiRssi                  ();
         String          getCurrentWifiIp                    ();
         String          getCurrentWifiGateway               ();
         String          getCurrentWifiSubnet                ();

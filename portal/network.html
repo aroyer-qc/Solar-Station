@@ -256,6 +256,15 @@
         .shared-stepper-panel {
             margin-bottom: 18px;
         }
+        .network-status-panel {
+            margin-bottom: 18px;
+        }
+        .network-status-grid {
+            display: grid;
+            gap: 4px 24px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .network-status-grid p { margin: 6px 0; }
         .shared-stepper-layout {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
@@ -351,6 +360,22 @@
         </section>
 
 <section id="network" class="tabcontent active">
+            <div class="panel network-status-panel">
+                <h2>Network Status</h2>
+                <div class="network-status-grid">
+                    <p><strong>SSID:</strong> {{wifiSSID}}</p>
+                    <p><strong>Mode:</strong> <span data-live-key="wifiMode">{{wifiMode}}</span></p>
+                    <p><strong>Status:</strong> <span data-live-key="wifiStatus">{{wifiStatus}}</span></p>
+                    <p><strong>Signal (RSSI):</strong> <span data-live-key="wifiRssi">{{wifiRssi}}</span></p>
+                    <p><strong>DHCP:</strong> <span data-live-key="wifiDhcpStatus">{{wifiDhcpStatus}}</span></p>
+                    <p><strong>IP:</strong> <span data-live-key="wifiIp">{{wifiIp}}</span></p>
+                    <p><strong>Gateway:</strong> <span data-live-key="wifiGateway">{{wifiGateway}}</span></p>
+                    <p><strong>Subnet:</strong> <span data-live-key="wifiSubnet">{{wifiSubnet}}</span></p>
+                    <p><strong>DNS:</strong> <span data-live-key="wifiDns1">{{wifiDns1}}</span></p>
+                    <p><strong>NTP:</strong> <span data-live-key="ntpStatus">{{ntpStatus}}</span></p>
+                </div>
+            </div>
+
             <div class="grid">
                 <div class="panel">
                     <h2>Wi-Fi</h2>

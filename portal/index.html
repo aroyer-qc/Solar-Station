@@ -361,16 +361,7 @@
             </div>
             <div class="panel">
                 <h2>System Status</h2>
-                <p><strong>SSID:</strong> {{wifiSSID}}</p>
-                <p><strong>Mode:</strong> <span data-live-key="wifiMode">{{wifiMode}}</span></p>
-                <p><strong>Status:</strong> <span data-live-key="wifiStatus">{{wifiStatus}}</span></p>
-                <p><strong>DHCP:</strong> <span data-live-key="wifiDhcpStatus">{{wifiDhcpStatus}}</span></p>
-                <p><strong>IP:</strong> <span data-live-key="wifiIp">{{wifiIp}}</span></p>
-                <p><strong>Gateway:</strong> <span data-live-key="wifiGateway">{{wifiGateway}}</span></p>
-                <p><strong>Subnet:</strong> <span data-live-key="wifiSubnet">{{wifiSubnet}}</span></p>
-                <p><strong>DNS:</strong> <span data-live-key="wifiDns1">{{wifiDns1}}</span></p>
-                <p><strong>Local time:</strong> <span data-live-key="localDateTime">{{localDateTime}}</span></p>
-                <p><strong>NTP:</strong> <span data-live-key="ntpStatus">{{ntpStatus}}</span></p>
+                <p><strong>Local time:</strong> <span id="localTimeLed" class="led led-waiting" data-time-valid="{{localTimeValid}}"></span><span data-live-key="localDateTime">{{localDateTime}}</span></p>
                 <p><strong>Sunrise:</strong> <span data-live-key="todaySunrise">{{todaySunrise}}</span></p>
                 <p><strong>Sunset:</strong> <span data-live-key="todaySunset">{{todaySunset}}</span></p>
                 <p><strong>Daily azimuth min:</strong> <span data-live-key="todayAzMin">{{todayAzMin}}</span></p>

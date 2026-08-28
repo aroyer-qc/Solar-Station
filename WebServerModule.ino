@@ -34,6 +34,7 @@ extern String 	GetOutputNextEventTimeSummary		    (uint8_t outputIndex);
 extern String 	GetOutputNextEventReasonSummary	        (uint8_t outputIndex);
 extern String 	GetLocalDateTimeSummary				    ();
 extern String 	GetNtpSyncStatusSummary				    ();
+extern bool 	IsSystemTimeValid					    ();
 extern String 	GetCalculatedAzimuthSummary			    ();
 extern String 	GetCalculatedElevationSummary		    ();
 extern String 	GetLimitSwitchSummary				    ();
@@ -190,6 +191,16 @@ String WebServerModule::getWifiDisplayValue(const char* value, bool automaticWhe
     }
 
     return String(value);
+}
+
+String WebServerModule::getCurrentWifiRssi()
+{
+    if(WiFi.isConnected())
+    {
+        return String((int)WiFi.RSSI()) + " dBm";
+    }
+
+    return "Not connected";
 }
 
 String WebServerModule::getCurrentWifiIp()
@@ -619,11 +630,13 @@ void WebServerModule::handleConfigPage()
     html.replace("{{wifiStatus}}", 							getWifiConnectionStatusLabel());
     html.replace("{{wifiMode}}", 							getWifiModeLabel());
     html.replace("{{wifiDhcpStatus}}", 						Config.GetWIFI_UseDHCP() ? "Enabled" : "Disabled (static)");
+    html.replace("{{wifiRssi}}", 							getCurrentWifiRssi());
     html.replace("{{wifiIp}}", 								getCurrentWifiIp());
     html.replace("{{wifiGateway}}", 						getCurrentWifiGateway());
     html.replace("{{wifiSubnet}}", 							getCurrentWifiSubnet());
     html.replace("{{wifiDns1}}", 							getCurrentWifiDns());
     html.replace("{{localDateTime}}", 						GetLocalDateTimeSummary());
+    html.replace("{{localTimeValid}}", 						IsSystemTimeValid() ? "1" : "0");
     html.replace("{{ntpStatus}}", 							GetNtpSyncStatusSummary());
     html.replace("{{todaySunrise}}", 						GetTodaySunriseSummary());
     html.replace("{{todaySunset}}", 						GetTodaySunsetSummary());
@@ -907,6 +920,10 @@ payload += "wifiDhcpStatus=";
 payload += (Config.GetWIFI_UseDHCP() ? "Enabled" : "Disabled (static)");
 payload += "\n";
 
+payload += "wifiRssi=";
+payload += getCurrentWifiRssi();
+payload += "\n";
+
 payload += "wifiIp=";
 payload += getCurrentWifiIp();
 payload += "\n";
@@ -925,6 +942,10 @@ payload += "\n";
 
 payload += "localDateTime=";
 payload += GetLocalDateTimeSummary();
+payload += "\n";
+
+payload += "timeValid=";
+payload += (IsSystemTimeValid() ? "1" : "0");
 payload += "\n";
 
 payload += "ntpStatus=";
