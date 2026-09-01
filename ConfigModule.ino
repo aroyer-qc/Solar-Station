@@ -53,6 +53,7 @@ void ConfigModule::Begin()
     m_Preferences.begin("config", false);
 
     ResetOutputAutomaticModeConfig();
+    ResetOutputNameConfig();
   
     if(LoadConfig())
     {
@@ -88,6 +89,14 @@ void ConfigModule::Begin()
             char key[16];
             snprintf(key, sizeof(key), "out_auto_%u", i);
             m_OutputAutomaticModes[i] = m_Preferences.getBool(key, false);
+
+            char nameKey[16];
+            snprintf(nameKey, sizeof(nameKey), "out_name_%u", i);
+            String storedName = m_Preferences.getString(nameKey, "");
+            if(storedName.length() > 0u)
+            {
+                CopyCStringSafe(m_OutputNames[i], OUTPUT_NAME_SIZE, storedName.c_str());
+            }
 
             OutputSchedule_t secondary = {};
             char scheduleKey[16];
@@ -160,6 +169,10 @@ void ConfigModule::SaveConfig()
         snprintf(key, sizeof(key), "out_auto_%u", i);
         m_Preferences.putBool(key, m_OutputAutomaticModes[i]);
 
+        char nameKey[16];
+        snprintf(nameKey, sizeof(nameKey), "out_name_%u", i);
+        m_Preferences.putString(nameKey, m_OutputNames[i]);
+
         NormalizeOutputSchedule(m_OutputScheduleSlot2[i]);
         char scheduleKey[16];
         snprintf(scheduleKey, sizeof(scheduleKey), "out_s2_%u", i);
@@ -204,6 +217,7 @@ void ConfigModule::SetDefaultConfig()
     ResetWiFiConfig();
     ResetOutputScheduleConfig();
     ResetOutputAutomaticModeConfig();
+    ResetOutputNameConfig();
 }
 
 void ConfigModule::ResetConstantsConfig()
@@ -318,6 +332,14 @@ void ConfigModule::ResetOutputAutomaticModeConfig()
     for(uint8_t i = 0; i < OUTPUT_COUNT; i++)
     {
         m_OutputAutomaticModes[i] = false;
+    }
+}
+
+void ConfigModule::ResetOutputNameConfig()
+{
+    for(uint8_t i = 0; i < OUTPUT_COUNT; i++)
+    {
+        snprintf(m_OutputNames[i], OUTPUT_NAME_SIZE, "Output %u", (unsigned)(i + 1u));
     }
 }
 
@@ -662,6 +684,35 @@ bool ConfigModule::GetOutputAutomaticMode(uint8_t index) const
     }
 
     return m_OutputAutomaticModes[index];
+}
+
+void ConfigModule::SetOutputName(uint8_t index, const char *value)
+{
+    if(index >= OUTPUT_COUNT)
+    {
+        return;
+    }
+
+    String trimmed = (value != nullptr) ? String(value) : String("");
+    trimmed.trim();
+
+    if(trimmed.length() == 0u)
+    {
+        snprintf(m_OutputNames[index], OUTPUT_NAME_SIZE, "Output %u", (unsigned)(index + 1u));
+        return;
+    }
+
+    CopyCStringSafe(m_OutputNames[index], OUTPUT_NAME_SIZE, trimmed.c_str());
+}
+
+const char* ConfigModule::GetOutputName(uint8_t index) const
+{
+    if(index >= OUTPUT_COUNT)
+    {
+        return "";
+    }
+
+    return m_OutputNames[index];
 }
 
 const OutputSchedule_t& ConfigModule::GetOutputSchedule(uint8_t index, uint8_t slotIndex) const

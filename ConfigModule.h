@@ -86,6 +86,7 @@ class ConfigModule
     static constexpr uint8_t OUTPUT_COUNT = 3u;
     static constexpr uint8_t OUTPUT_SCHEDULE_SLOT_COUNT = 2u;
     static constexpr uint8_t OUTPUT_SCHEDULE_DAYS_ALL = 0x7Fu;
+    static constexpr uint8_t OUTPUT_NAME_SIZE = 17u;             // 16 visible characters plus the terminator
   
                         ConfigModule                            ();
         void            Begin                                   ();
@@ -102,6 +103,7 @@ class ConfigModule
         void            ResetWiFiConfig                         ();
         void            ResetOutputScheduleConfig               ();
         void            ResetOutputAutomaticModeConfig          ();
+        void            ResetOutputNameConfig                   ();
 
         void            PrintConfig                             ();
 
@@ -154,6 +156,7 @@ class ConfigModule
         void            SetOutputSchedule                       (uint8_t index, uint8_t slotIndex, const OutputSchedule_t& schedule);
         void            SetOutputScheduleActiveDaysMask         (uint8_t index, uint8_t slotIndex, uint8_t activeDaysMask);
         void            SetOutputAutomaticMode                  (uint8_t index, bool automaticMode);
+        void            SetOutputName                           (uint8_t index, const char *value);
 
         double          GetST_Latitude                          ()                  { return m_ConfigData.ST_Latitude; }
         double          GetST_Longitude                         ()                  { return m_ConfigData.ST_Longitude; }
@@ -203,6 +206,7 @@ class ConfigModule
         const OutputSchedule_t& GetOutputSchedule               (uint8_t index, uint8_t slotIndex) const;
         uint8_t         GetOutputScheduleActiveDaysMask         (uint8_t index, uint8_t slotIndex) const;
         bool            GetOutputAutomaticMode                  (uint8_t index) const;
+        const char*     GetOutputName                           (uint8_t index) const;
 
     private:
   
@@ -214,6 +218,7 @@ class ConfigModule
         uint16_t        m_ElevationMotorStepsPerRevolution = 200u;
         uint16_t        m_Stepper3MotorStepsPerRevolution = 200u;
         bool            m_OutputAutomaticModes[OUTPUT_COUNT];
+        char            m_OutputNames[OUTPUT_COUNT][OUTPUT_NAME_SIZE];
         OutputSchedule_t m_OutputScheduleSlot2[OUTPUT_COUNT];
         uint8_t         m_OutputScheduleActiveDaysMasks[OUTPUT_COUNT][OUTPUT_SCHEDULE_SLOT_COUNT];
         Preferences     m_Preferences;

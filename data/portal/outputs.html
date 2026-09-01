@@ -354,8 +354,16 @@
 <section id="outputs" class="tabcontent active">
             <div class="grid">
                 <div class="panel">
-                    <h2>Output 1</h2>
+                    <h2>{{out1Name}}</h2>
 
+                    <form action="/saveOutputNames" method="POST">
+                        <input type="hidden" name="output" value="1">
+                        <label for="output1Name">Name</label>
+                        <input type="text" id="output1Name" name="name" maxlength="16" value="{{out1Name}}">
+                        <div class="actions">
+                            <input type="submit" value="Rename">
+                        </div>
+                    </form>
                     <form class="output-mode-form" data-output-index="1">
                         <div class="actions">
                             <label>
@@ -384,8 +392,16 @@
                 </div>
 
                 <div class="panel">
-                    <h2>Output 2</h2>
+                    <h2>{{out2Name}}</h2>
 
+                    <form action="/saveOutputNames" method="POST">
+                        <input type="hidden" name="output" value="2">
+                        <label for="output2Name">Name</label>
+                        <input type="text" id="output2Name" name="name" maxlength="16" value="{{out2Name}}">
+                        <div class="actions">
+                            <input type="submit" value="Rename">
+                        </div>
+                    </form>
                     <form class="output-mode-form" data-output-index="2">
                         <div class="actions">
                             <label>
@@ -414,8 +430,16 @@
                 </div>
 
                 <div class="panel">
-                    <h2>Output 3</h2>
+                    <h2>{{out3Name}}</h2>
 
+                    <form action="/saveOutputNames" method="POST">
+                        <input type="hidden" name="output" value="3">
+                        <label for="output3Name">Name</label>
+                        <input type="text" id="output3Name" name="name" maxlength="16" value="{{out3Name}}">
+                        <div class="actions">
+                            <input type="submit" value="Rename">
+                        </div>
+                    </form>
                     <form class="output-mode-form" data-output-index="3">
                         <div class="actions">
                             <label>
@@ -449,7 +473,7 @@
                 <form action="/saveScheduleConfig" method="POST">
                     <div class="schedule-grid">
                         <div class="schedule-output">
-                            <h3>Output 1</h3>
+                            <h3>{{out1Name}}</h3>
                             <div class="schedule-slot">
                             <h4>Schedule 1</h4>
                             <label><input type="checkbox" name="schedule1Enabled" data-schedule-enabled="1" {{schedule1EnabledChecked}}>Enable schedule</label>
@@ -506,7 +530,7 @@
                         </div>
 
                         <div class="schedule-output">
-                            <h3>Output 2</h3>
+                            <h3>{{out2Name}}</h3>
                             <div class="schedule-slot">
                             <h4>Schedule 1</h4>
                             <label><input type="checkbox" name="schedule2Enabled" data-schedule-enabled="1" {{schedule2EnabledChecked}}>Enable schedule</label>
@@ -563,7 +587,7 @@
                         </div>
 
                         <div class="schedule-output">
-                            <h3>Output 3</h3>
+                            <h3>{{out3Name}}</h3>
                             <div class="schedule-slot">
                             <h4>Schedule 1</h4>
                             <label><input type="checkbox" name="schedule3Enabled" data-schedule-enabled="1" {{schedule3EnabledChecked}}>Enable schedule</label>

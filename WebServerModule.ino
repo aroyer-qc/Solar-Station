@@ -146,6 +146,28 @@ static String JsonEscape(const String& input)
     return output;
 }
 
+static String HtmlEscape(const String& input)
+{
+    String output;
+    output.reserve(input.length() + 8);
+
+    for(size_t i = 0; i < input.length(); i++)
+    {
+        char c = input[i];
+        switch(c)
+        {
+            case '&':   output += "&amp;";  break;
+            case '<':   output += "&lt;";   break;
+            case '>':   output += "&gt;";   break;
+            case '"':   output += "&quot;"; break;
+            case '\'':  output += "&#39;";  break;
+            default:    output += c;        break;
+        }
+    }
+
+    return output;
+}
+
 String WebServerModule::getWifiModeLabel()
 {
     switch(WiFi.getMode())
@@ -429,6 +451,7 @@ void WebServerModule::setupServer()
     server.on("/saveNTPConfig", 			HTTP_POST, [this]() { this->HandleSaveNTPConfig(); });
     server.on("/resetNTPConfig", 			HTTP_POST, [this]() { this->HandleResetNTPConfig(); });
     server.on("/setOutputControl", 			HTTP_POST, [this]() { this->HandleSetOutputControl(); });
+    server.on("/saveOutputNames", 			HTTP_POST, [this]() { this->HandleSaveOutputNames(); });
     server.on("/saveScheduleConfig", 		HTTP_POST, [this]() { this->HandleSaveScheduleConfig(); });
     server.on("/resetScheduleConfig", 		HTTP_POST, [this]() { this->HandleResetScheduleConfig(); });
     server.on("/setTrackingOverride", 		HTTP_POST, [this]() { this->HandleSetTrackingOverride(); });
@@ -668,6 +691,9 @@ void WebServerModule::handleConfigPage()
     html.replace("{{out1Mode}}", 						Config.GetOutputAutomaticMode(0) ? "AUTO" : "MANUAL");
     html.replace("{{out2Mode}}", 						Config.GetOutputAutomaticMode(1) ? "AUTO" : "MANUAL");
     html.replace("{{out3Mode}}", 						Config.GetOutputAutomaticMode(2) ? "AUTO" : "MANUAL");
+    html.replace("{{out1Name}}", 						HtmlEscape(String(Config.GetOutputName(0))));
+    html.replace("{{out2Name}}", 						HtmlEscape(String(Config.GetOutputName(1))));
+    html.replace("{{out3Name}}", 						HtmlEscape(String(Config.GetOutputName(2))));
     html.replace("{{out1DutyPercent}}",					String(GetMosfetPwmPercent(0)));
     html.replace("{{out2DutyPercent}}",	 				String(GetMosfetPwmPercent(1)));
     html.replace("{{out3DutyPercent}}", 					String(GetMosfetPwmPercent(2)));
@@ -1766,6 +1792,28 @@ void WebServerModule::HandleSetOutputControl()
     }
 
     server.sendHeader("Location", "/");
+    server.send(303);
+}
+
+void WebServerModule::HandleSaveOutputNames()
+{
+    if(!server.hasArg("output"))
+    {
+        server.send(400, "text/plain", "Missing output parameter");
+        return;
+    }
+
+    long outputNumber = server.arg("output").toInt();
+    if(outputNumber < 1 || outputNumber > (long)ConfigModule::OUTPUT_COUNT)
+    {
+        server.send(400, "text/plain", "Invalid output index");
+        return;
+    }
+
+    Config.SetOutputName((uint8_t)(outputNumber - 1), server.arg("name").c_str());
+    Config.SaveConfig();
+
+    server.sendHeader("Location", "/portal/outputs");
     server.send(303);
 }
 

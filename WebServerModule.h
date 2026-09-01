@@ -38,6 +38,7 @@ class WebServerModule
         void            HandleSaveNTPConfig                 ();
         void            HandleResetNTPConfig                ();
         void            HandleSetOutputControl              ();
+        void            HandleSaveOutputNames               ();
         void            HandleSaveScheduleConfig            ();
         void            HandleResetScheduleConfig           ();
         void            HandleSetTrackingOverride           ();
