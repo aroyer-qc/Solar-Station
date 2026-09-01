@@ -256,8 +256,8 @@ uint16_t ResolveScheduleBoundaryMinutes(uint8_t boundaryType,
 
         case 0:
         default:
-            baseMinutes = (int32_t)(hour * 60u) + minute;
-            break;
+            // Fixed local time is absolute: the sun offset does not apply.
+            return NormalizeMinutes((int32_t)(hour * 60u) + minute);
     }
 
     return NormalizeMinutes(baseMinutes + offsetMinutes);
@@ -543,7 +543,7 @@ static String FormatScheduleBoundaryReason(uint8_t boundaryType, int16_t offsetM
         base = "SUNSET";
     }
 
-    if(offsetMinutes == 0)
+    if(boundaryType == 0 || offsetMinutes == 0)
     {
         return String(base);
     }

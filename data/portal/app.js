@@ -125,6 +125,27 @@ function initializeScheduleControls() {
     });
 }
 
+function syncScheduleBoundaryFields(boundaryTypeSelect) {
+    const boundary = boundaryTypeSelect.id.replace(/Type$/, '');
+    const isFixedTime = boundaryTypeSelect.value === '0';
+    const timeInput = document.getElementById(`${boundary}Hour`);
+    const offsetInput = document.getElementById(`${boundary}OffsetMinutes`);
+    const elements = [
+        [document.querySelector(`label[for="${boundary}Hour"]`), !isFixedTime],
+        [timeInput ? timeInput.closest('.actions') : null, !isFixedTime],
+        [document.querySelector(`label[for="${boundary}OffsetMinutes"]`), isFixedTime],
+        [offsetInput, isFixedTime],
+    ];
+    elements.forEach(([element, isHidden]) => { if (element) element.hidden = isHidden; });
+}
+
+function initializeScheduleBoundaryTypes() {
+    document.querySelectorAll('select[id$="StartType"], select[id$="EndType"]').forEach((boundaryTypeSelect) => {
+        boundaryTypeSelect.addEventListener('change', () => syncScheduleBoundaryFields(boundaryTypeSelect));
+        syncScheduleBoundaryFields(boundaryTypeSelect);
+    });
+}
+
 function initializeScheduleDaySelectors() {
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     document.querySelectorAll('[data-schedule-days]').forEach((container) => {
@@ -286,7 +307,7 @@ if (tabFromPath && document.getElementById(tabFromPath)) {
 } else if (document.getElementById('config')) {
     activateTab('config');
 }
-initializeOutputControlsFromMode(); initializeOutputActionForms(); initializeScheduleDaySelectors(); initializeScheduleControls();
+initializeOutputControlsFromMode(); initializeOutputActionForms(); initializeScheduleDaySelectors(); initializeScheduleControls(); initializeScheduleBoundaryTypes();
 [stepper1MotorStepsPerRevolutionInput, stepper2MotorStepsPerRevolutionInput, stepperMicrostepModeInput, azimuthGearReductionInput, elevationGearReductionInput].forEach((input) => { if (input) { input.addEventListener('input', refreshComputedStepsPerDegree); input.addEventListener('change', refreshComputedStepsPerDegree); } });
 refreshComputedStepsPerDegree(); normalizeExistingLiveFieldLabels(); updateElevationMinimumIndicator(); updateMpptLinkLed(); updateLocalTimeLed(); updateCalculatedRangeIndicator();
 async function scheduleLiveDataRefresh() { await refreshLiveData(); window.setTimeout(scheduleLiveDataRefresh, REFRESH_INTERVAL_MS); }

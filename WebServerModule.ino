@@ -1898,6 +1898,23 @@ void WebServerModule::HandleSaveScheduleConfig()
         return;
     }
 
+    // Keep the reported output mode in sync with the saved schedules.
+    for(uint8_t outputIndex = 0u; outputIndex < ConfigModule::OUTPUT_COUNT; outputIndex++)
+    {
+        bool hasEnabledSchedule = false;
+
+        for(uint8_t slotIndex = 0u; slotIndex < ConfigModule::OUTPUT_SCHEDULE_SLOT_COUNT; slotIndex++)
+        {
+            if(Config.GetOutputSchedule(outputIndex, slotIndex).Enabled)
+            {
+                hasEnabledSchedule = true;
+                break;
+            }
+        }
+
+        Config.SetOutputAutomaticMode(outputIndex, hasEnabledSchedule);
+    }
+
     Config.SaveConfig();
     ApplyOutputSchedules();
     server.sendHeader("Location", "/");
