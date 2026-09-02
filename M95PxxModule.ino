@@ -51,9 +51,11 @@ void M95PxxModule::Begin()
     m_JedecId[0] = manufacturer;
     m_JedecId[1] = type;
     m_JedecId[2] = capacity;
+  #ifdef USE_DEBUG_M95P
     Serial.printf("[M95Pxx] Init. SCK=%u MOSI=%u MISO=%u CS=%u SR=0x%02X JEDEC=%02X %02X %02X\n",
                   M95PXX_SPI_SCK_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_CS_PIN,
                   status, manufacturer, type, capacity);
+  #endif
 
     m_LfsCfg.context = this;
     m_LfsCfg.read = &M95PxxModule::LfsBlockRead;
@@ -74,24 +76,30 @@ void M95PxxModule::Begin()
     // A silent bus reads as all-zero or all-one; formatting it would stall on 8192 page erases.
     if((manufacturer == 0x00) || (manufacturer == 0xFF))
     {
+      #ifdef USE_DEBUG_M95P
         Serial.println("[M95Pxx] No answer from the device, storage disabled.");
+      #endif
         m_IsReady = false;
         return;
     }
 
 	if(MountLittleFs(true) == false)
 	{
+      #ifdef USE_DEBUG_M95P
         Serial.println("[M95Pxx] LittleFS bootstrap failed.");
+      #endif
 		m_IsReady = false;
     }
 }
 
 bool M95PxxModule::IsReady()
 {
+  #ifdef USE_DEBUG_M95P
     if(m_IsReady == false)
     {
         Serial.println("[M95Pxx] LittleFS not ready.");
     }
+  #endif
 
 	return m_IsReady;
 }
@@ -264,7 +272,9 @@ bool M95PxxModule::WaitWriteComplete(uint32_t TimeoutMs)
         }
     }
 
+  #ifdef USE_DEBUG_M95P
     Serial.println("[M95Pxx] Write timeout.");
+  #endif
     return false;
 }
 
@@ -396,7 +406,9 @@ bool M95PxxModule::MountLittleFs(bool FormatOnFail)
     if(result < 0)
     {
         m_LastLfsError = result;
+      #ifdef USE_DEBUG_M95P
         Serial.printf("[M95Pxx] lfs_mount failed: %d\n", result);
+      #endif
         return false;
     }
 
@@ -416,7 +428,9 @@ bool M95PxxModule::FormatLittleFs()
     if(result < 0)
     {
         m_LastLfsError = result;
+      #ifdef USE_DEBUG_M95P
         Serial.printf("[M95Pxx] lfs_format failed: %d\n", result);
+      #endif
         return false;
     }
 

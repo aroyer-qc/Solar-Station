@@ -11,10 +11,10 @@
 #define LFS_STRINGIZE(x) LFS_STRINGIZE2(x)
 #define LFS_STRINGIZE2(x) #x
 
-// Silence the littlefs console chatter. Comment out LFS_NO_ERROR to get faults back on serial.
+// Silence the littlefs console chatter. Comment these out to get its faults back on serial.
 #define LFS_NO_DEBUG
 #define LFS_NO_WARN
-//#define LFS_NO_ERROR
+#define LFS_NO_ERROR
 
 // Users can override lfs_util.h with their own configuration by defining
 // LFS_CONFIG as a header file to include (-DLFS_CONFIG=lfs_config.h).
