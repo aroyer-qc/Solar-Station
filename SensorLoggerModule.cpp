@@ -164,7 +164,13 @@ String SensorLoggerModule::GetManifestJson()
     Payload += String(StorageReady ? (uint32_t)m_pStorage->LittleFsUsedBytes() : 0u);
     Payload += ",\"totalBytes\":";
     Payload += String(StorageReady ? (uint32_t)m_pStorage->LittleFsTotalBytes() : 0u);
-    Payload += ",\"channels\":[";
+    Payload += ",\"storageReady\":";
+    Payload += (StorageReady ? "true" : "false");
+    Payload += ",\"clockValid\":";
+    Payload += (IsSystemTimeValid() ? "true" : "false");
+    Payload += ",\"currentDay\":\"";
+    Payload += m_CurrentDayTag;
+    Payload += "\",\"channels\":[";
 
     for(uint8_t i = 0; i < m_ChannelCount; i++)
     {

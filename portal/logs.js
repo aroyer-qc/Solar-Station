@@ -27,7 +27,8 @@ const state = {
     samples: null,
     stepSeconds: 1,
     plot: null,
-    totalBytes: 0
+    storageReady: false,
+    clockValid: false
 };
 
 function setMessage(text) {
@@ -120,10 +121,14 @@ function updateHeader() {
         elements.subtitle.textContent = `${formatDayTag(state.file.date)} - ${state.file.name} - ${formatBytes(state.file.bytes)}`;
         elements.download.href = `/api/logs/download?name=${encodeURIComponent(state.file.name)}`;
         elements.download.style.display = '';
+    } else if (!state.storageReady) {
+        elements.subtitle.textContent = 'Log storage unavailable: the M95P32 filesystem is not mounted.';
+        elements.download.style.display = 'none';
+    } else if (!state.clockValid) {
+        elements.subtitle.textContent = 'Waiting for a valid system clock (NTP). Nothing is recorded until then.';
+        elements.download.style.display = 'none';
     } else {
-        elements.subtitle.textContent = state.totalBytes > 0
-            ? 'No data recorded yet. Logging only starts once the system clock is valid (NTP).'
-            : 'Log storage is unavailable: the M95P32 filesystem is not mounted.';
+        elements.subtitle.textContent = 'No data recorded yet for this log.';
         elements.download.style.display = 'none';
     }
 }
@@ -378,7 +383,8 @@ async function initialize() {
 
     try {
         const manifest = await fetchManifest();
-        state.totalBytes = Number(manifest.totalBytes || 0);
+        state.storageReady = manifest.storageReady === true;
+        state.clockValid = manifest.clockValid === true;
         state.channels = Array.isArray(manifest.channels) ? manifest.channels : [];
         state.files = Array.isArray(manifest.files) ? manifest.files : [];
     } catch (error) {
