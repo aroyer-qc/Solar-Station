@@ -46,7 +46,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #ifndef SENSOR_LOGGER_MAX_CHANNEL
-#define SENSOR_LOGGER_MAX_CHANNEL           8
+#define SENSOR_LOGGER_MAX_CHANNEL           16
 #endif
 
 #define SENSOR_LOGGER_INVALID_CHANNEL       -1

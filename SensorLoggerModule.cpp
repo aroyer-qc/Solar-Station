@@ -120,8 +120,15 @@ void SensorLoggerModule::Update(uint32_t NowMs)
         if((Channel.Provider != nullptr) && ((NowMs - Channel.LastSampleMs) >= Channel.SampleIntervalMs))
         {
             Channel.LastSampleMs = NowMs;
-            Channel.Sum         += Channel.Provider();
-            Channel.Count++;
+
+            // A provider returns a non-finite value when it has no reading; the slot stays a gap.
+            float Value = Channel.Provider();
+
+            if(isfinite(Value))
+            {
+                Channel.Sum += Value;
+                Channel.Count++;
+            }
         }
 
         FlushChannel(Channel, NowMs);
@@ -132,7 +139,7 @@ void SensorLoggerModule::Update(uint32_t NowMs)
 
 bool SensorLoggerModule::PushSample(int8_t ChannelID, float Value)
 {
-    if(!IsChannelIdValid(ChannelID))
+    if(!IsChannelIdValid(ChannelID) || !isfinite(Value))
     {
         return false;
     }

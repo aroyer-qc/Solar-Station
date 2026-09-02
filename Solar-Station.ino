@@ -250,6 +250,9 @@ static constexpr uint32_t ADC_LOG_SAMPLE_INTERVAL_MS = 1000u;
 static constexpr uint32_t ADC_LOG_AVG_WINDOW_MS = 2000u;
 static constexpr uint32_t LUX_LOG_SAMPLE_INTERVAL_MS = SENSOR_REFRESH_MS;
 static constexpr uint32_t LUX_LOG_AVG_WINDOW_MS = 2000u;
+// MPPT values move slowly; a wide window keeps nine channels within the retention budget.
+static constexpr uint32_t MPPT_LOG_SAMPLE_INTERVAL_MS = MPPT_POLL_INTERVAL_MS;
+static constexpr uint32_t MPPT_LOG_AVG_WINDOW_MS = 30000u;
 static constexpr uint8_t LOG_RETENTION_THRESHOLD_PERCENT = 80u;
 
 //-------------------------------------------------------------------------------------------------
@@ -314,6 +317,12 @@ SensorLoggerModule      SensorLogger;
 int8_t                  Load1LogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
 int8_t                  Load2LogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
 int8_t                  LuxLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  PanelVoltageLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  ChargingCurrentLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  BatterySocLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  BatteryVoltageLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  PanelCurrentLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  PanelPowerLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
 bool                    StatusLedBlinkState = false;
 uint32_t                StatusLedLastToggleMs = 0;
 int32_t                 SunsetReturnLastAttemptDateKey = -1;
@@ -1261,11 +1270,68 @@ static float SensorLogReadLux()
 
 //-------------------------------------------------------------------------------------------------
 
+// The MPPT globals keep their last value when the link drops, so report a gap instead of stale data.
+static float SensorLogReadMppt(float value)
+{
+    return (MpptPollHasRun && MpptLinkHealthy) ? value : NAN;
+}
+
+//-------------------------------------------------------------------------------------------------
+
+static float SensorLogReadPanelVoltage()
+{
+    return SensorLogReadMppt(PanelVoltage);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+static float SensorLogReadChargingCurrent()
+{
+    return SensorLogReadMppt(ChargingCurrent);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+static float SensorLogReadBatterySoc()
+{
+    return SensorLogReadMppt(BatterySoc);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+static float SensorLogReadBatteryVoltage()
+{
+    return SensorLogReadMppt(BatteryVoltage);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+static float SensorLogReadPanelCurrent()
+{
+    return SensorLogReadMppt(PanelCurrent);
+}
+
+//-------------------------------------------------------------------------------------------------
+
+static float SensorLogReadPanelPower()
+{
+    return SensorLogReadMppt(PanelChargingPower);
+}
+
+//-------------------------------------------------------------------------------------------------
+
 void InitSensorDataLogging()
 {
     Load1LogChannelID = SensorLogger.RegisterChannel("ADC_Load1", "ADC_LOAD1", "Load 1 current", "A",  ADC_LOG_SAMPLE_INTERVAL_MS, ADC_LOG_AVG_WINDOW_MS, SensorLogReadLoad1);
     Load2LogChannelID = SensorLogger.RegisterChannel("ADC_Load2", "ADC_LOAD2", "Load 2 current", "A",  ADC_LOG_SAMPLE_INTERVAL_MS, ADC_LOG_AVG_WINDOW_MS, SensorLogReadLoad2);
     LuxLogChannelID   = SensorLogger.RegisterChannel("LUX",       "LUX",       "Ambient light",  "lx", LUX_LOG_SAMPLE_INTERVAL_MS, LUX_LOG_AVG_WINDOW_MS, SensorLogReadLux);
+
+    PanelVoltageLogChannelID    = SensorLogger.RegisterChannel("MPPT_PanelV",  "PANEL_VOLTAGE",    "Panel voltage",         "V", MPPT_LOG_SAMPLE_INTERVAL_MS, MPPT_LOG_AVG_WINDOW_MS, SensorLogReadPanelVoltage);
+    ChargingCurrentLogChannelID = SensorLogger.RegisterChannel("MPPT_ChargeI", "CHARGING_CURRENT", "Charging current",      "A", MPPT_LOG_SAMPLE_INTERVAL_MS, MPPT_LOG_AVG_WINDOW_MS, SensorLogReadChargingCurrent);
+    BatterySocLogChannelID      = SensorLogger.RegisterChannel("MPPT_BattSoc", "BATTERY_SOC",      "Battery SOC",           "%", MPPT_LOG_SAMPLE_INTERVAL_MS, MPPT_LOG_AVG_WINDOW_MS, SensorLogReadBatterySoc);
+    BatteryVoltageLogChannelID  = SensorLogger.RegisterChannel("MPPT_BattV",   "BATTERY_VOLTAGE",  "Battery voltage",       "V", MPPT_LOG_SAMPLE_INTERVAL_MS, MPPT_LOG_AVG_WINDOW_MS, SensorLogReadBatteryVoltage);
+    PanelCurrentLogChannelID    = SensorLogger.RegisterChannel("MPPT_PanelI",  "PANEL_CURRENT",    "Panel current",         "A", MPPT_LOG_SAMPLE_INTERVAL_MS, MPPT_LOG_AVG_WINDOW_MS, SensorLogReadPanelCurrent);
+    PanelPowerLogChannelID      = SensorLogger.RegisterChannel("MPPT_PanelW",  "PANEL_POWER",      "Panel charging power",  "W", MPPT_LOG_SAMPLE_INTERVAL_MS, MPPT_LOG_AVG_WINDOW_MS, SensorLogReadPanelPower);
 
     SensorLogger.SetRetentionThreshold(LOG_RETENTION_THRESHOLD_PERCENT);
 
