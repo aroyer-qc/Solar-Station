@@ -2,6 +2,10 @@
 
 const SECONDS_PER_DAY = 86400;
 const Y_AXIS_HEADROOM = 1.25;
+const CURSOR_HEAD_WIDTH = 58;
+const CURSOR_HEAD_HEIGHT = 20;
+const CURSOR_TIP_HEIGHT = 6;
+const CURSOR_GRAB_RADIUS = 12;
 
 const elements = {
     title: document.getElementById('logTitle'),
@@ -12,6 +16,9 @@ const elements = {
     message: document.getElementById('message'),
     canvas: document.getElementById('logChart'),
     readout: document.getElementById('chartReadout'),
+    zoomButton: document.getElementById('zoomButton'),
+    resetButton: document.getElementById('resetZoomButton'),
+    rangeLabel: document.getElementById('rangeLabel'),
     statMin: document.getElementById('statMin'),
     statMax: document.getElementById('statMax'),
     statAvg: document.getElementById('statAvg'),
@@ -29,7 +36,10 @@ const state = {
     plot: null,
     storageReady: false,
     clockValid: false,
-    storageDiag: ''
+    storageDiag: '',
+    view: { start: 0, end: SECONDS_PER_DAY },
+    cursors: { start: 0, end: SECONDS_PER_DAY },
+    drag: null
 };
 
 function setMessage(text) {
@@ -53,6 +63,73 @@ function formatClock(totalSeconds) {
     const seconds = clamped % 60;
     const pad = (v) => String(v).padStart(2, '0');
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+function formatClockShort(totalSeconds) {
+    return formatClock(totalSeconds).slice(0, 5);
+}
+
+function clamp(value, minimum, maximum) {
+    return Math.min(Math.max(value, minimum), maximum);
+}
+
+function getViewSpan() {
+    return state.view.end - state.view.start;
+}
+
+// Never let the selection collapse below a few samples, otherwise zooming yields an empty plot.
+function getMinimumSpan() {
+    return Math.max(state.stepSeconds * 4, 60);
+}
+
+function secondsToX(seconds) {
+    const { padding, plotWidth } = state.plot;
+    return padding.left + ((seconds - state.view.start) / getViewSpan()) * plotWidth;
+}
+
+function xToSeconds(x) {
+    const { padding, plotWidth } = state.plot;
+    return state.view.start + ((x - padding.left) / plotWidth) * getViewSpan();
+}
+
+function isSelectionNarrowed() {
+    const tolerance = Math.max(state.stepSeconds, 1);
+    return (state.cursors.start > state.view.start + tolerance)
+        || (state.cursors.end < state.view.end - tolerance);
+}
+
+function isZoomed() {
+    return (state.view.start > 0) || (state.view.end < SECONDS_PER_DAY);
+}
+
+function updateRangeControls() {
+    elements.zoomButton.hidden = !isSelectionNarrowed();
+    elements.resetButton.disabled = !isZoomed() && !isSelectionNarrowed();
+    elements.rangeLabel.textContent = `Showing ${formatClockShort(state.view.start)} to ${formatClockShort(state.view.end)}`;
+}
+
+function resetRange() {
+    state.view = { start: 0, end: SECONDS_PER_DAY };
+    state.cursors = { start: 0, end: SECONDS_PER_DAY };
+}
+
+function applyZoom() {
+    if (!isSelectionNarrowed()) return;
+    state.view = { start: state.cursors.start, end: state.cursors.end };
+    state.cursors = { start: state.view.start, end: state.view.end };
+    updateRangeControls();
+    drawChart();
+}
+
+function resetZoom() {
+    resetRange();
+    updateRangeControls();
+    drawChart();
+}
+
+function chooseTickStep(spanSeconds) {
+    const candidates = [60, 300, 600, 900, 1800, 3600, 7200, 10800, 21600];
+    return candidates.find((step) => spanSeconds / step <= 8) || 21600;
 }
 
 function formatDayTag(tag) {
@@ -173,13 +250,16 @@ function updateStats() {
 function buildColumns(width) {
     const values = state.samples;
     const columns = new Array(width).fill(null);
+    const span = getViewSpan();
 
     for (let i = 0; i < values.length; i++) {
         const value = values[i];
         if (!Number.isFinite(value)) continue;
 
         const seconds = i * state.stepSeconds;
-        const column = Math.min(width - 1, Math.max(0, Math.round((seconds / SECONDS_PER_DAY) * (width - 1))));
+        if (seconds < state.view.start || seconds > state.view.end) continue;
+
+        const column = clamp(Math.round(((seconds - state.view.start) / span) * (width - 1)), 0, width - 1);
         const bucket = columns[column];
         if (bucket === null) {
             columns[column] = { min: value, max: value, sum: value, count: 1 };
@@ -207,14 +287,17 @@ function drawChart() {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, cssWidth, cssHeight);
 
-    const padding = { top: 18, right: 16, bottom: 34, left: 62 };
+    const padding = { top: 34, right: 34, bottom: 34, left: 62 };
     const plotWidth = Math.max(1, cssWidth - padding.left - padding.right);
     const plotHeight = Math.max(1, cssHeight - padding.top - padding.bottom);
 
+    // Scale on what the view shows, so zooming into a quiet period actually reveals detail.
     let peak = 0;
     if (state.samples) {
         for (let i = 0; i < state.samples.length; i++) {
             const value = state.samples[i];
+            const seconds = i * state.stepSeconds;
+            if (seconds < state.view.start || seconds > state.view.end) continue;
             if (Number.isFinite(value) && value > peak) peak = value;
         }
     }
@@ -243,13 +326,15 @@ function drawChart() {
 
     context.textAlign = 'center';
     context.textBaseline = 'top';
-    for (let hour = 0; hour <= 24; hour += 3) {
-        const x = padding.left + (plotWidth * hour) / 24;
+    const tickStep = chooseTickStep(getViewSpan());
+    const firstTick = Math.ceil(state.view.start / tickStep) * tickStep;
+    for (let tick = firstTick; tick <= state.view.end; tick += tickStep) {
+        const x = secondsToX(tick);
         context.beginPath();
         context.moveTo(x, padding.top);
         context.lineTo(x, padding.top + plotHeight);
         context.stroke();
-        context.fillText(`${String(hour).padStart(2, '0')}:00`, x, padding.top + plotHeight + 8);
+        context.fillText(formatClockShort(tick), x, padding.top + plotHeight + 8);
     }
 
     context.strokeStyle = '#c3b48f';
@@ -259,40 +344,26 @@ function drawChart() {
     context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
     context.stroke();
 
-    if (!state.samples || state.samples.length === 0) {
-        context.fillStyle = '#58685f';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText('No samples for this day.', padding.left + plotWidth / 2, padding.top + plotHeight / 2);
-        return;
-    }
-
-    const columns = buildColumns(Math.round(plotWidth));
-
-    // Empty columns are real recording gaps, so each run of samples is drawn as its own segment.
-    const segments = [];
-    let current = null;
-    for (let i = 0; i < columns.length; i++) {
-        if (columns[i]) {
-            if (current === null) {
-                current = [];
-                segments.push(current);
-            }
-            current.push({ x: padding.left + i, bucket: columns[i] });
-        } else {
-            current = null;
-        }
-    }
+    const segments = (state.samples && state.samples.length > 0)
+        ? buildSegments(Math.round(plotWidth), padding.left)
+        : [];
 
     if (segments.length === 0) {
         context.fillStyle = '#58685f';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.fillText('No samples for this day.', padding.left + plotWidth / 2, padding.top + plotHeight / 2);
-        return;
+        context.fillText('No samples in this range.', padding.left + plotWidth / 2, padding.top + plotHeight / 2);
     }
 
     segments.forEach((points) => {
+        if (points.length === 1) {
+            context.fillStyle = '#2c7a5a';
+            context.beginPath();
+            context.arc(points[0].x, toY(points[0].bucket.sum), 2.5, 0, Math.PI * 2);
+            context.fill();
+            return;
+        }
+
         context.fillStyle = 'rgba(44, 122, 90, 0.18)';
         context.beginPath();
         context.moveTo(points[0].x, toY(points[0].bucket.max));
@@ -314,21 +385,175 @@ function drawChart() {
         });
         context.stroke();
     });
+
+    drawCursors(context);
+}
+
+// Empty columns are real recording gaps, so each run of samples becomes its own segment.
+function buildSegments(width, offsetX) {
+    const values = state.samples;
+    const firstIndex = Math.max(0, Math.floor(state.view.start / state.stepSeconds));
+    const lastIndex = Math.min(values.length - 1, Math.ceil(state.view.end / state.stepSeconds));
+
+    if (lastIndex < firstIndex) return [];
+
+    const segments = [];
+    let current = null;
+
+    // Past one sample per pixel, bucketing would scatter the curve into isolated points.
+    if ((lastIndex - firstIndex + 1) <= width) {
+        for (let i = firstIndex; i <= lastIndex; i++) {
+            const value = values[i];
+
+            if (!Number.isFinite(value)) {
+                current = null;
+                continue;
+            }
+
+            if (current === null) {
+                current = [];
+                segments.push(current);
+            }
+
+            current.push({
+                x: secondsToX(i * state.stepSeconds),
+                bucket: { min: value, max: value, sum: value, count: 1 }
+            });
+        }
+
+        return segments;
+    }
+
+    const columns = buildColumns(width);
+
+    for (let i = 0; i < columns.length; i++) {
+        if (columns[i]) {
+            if (current === null) {
+                current = [];
+                segments.push(current);
+            }
+            current.push({ x: offsetX + i, bucket: columns[i] });
+        } else {
+            current = null;
+        }
+    }
+
+    return segments;
+}
+
+function drawCursors(context) {
+    const { padding, plotWidth, plotHeight } = state.plot;
+    const top = padding.top;
+    const bottom = padding.top + plotHeight;
+    const startX = secondsToX(state.cursors.start);
+    const endX = secondsToX(state.cursors.end);
+
+    context.save();
+
+    context.fillStyle = 'rgba(32, 48, 40, 0.09)';
+    if (startX > padding.left) {
+        context.fillRect(padding.left, top, startX - padding.left, plotHeight);
+    }
+    if (endX < padding.left + plotWidth) {
+        context.fillRect(endX, top, padding.left + plotWidth - endX, plotHeight);
+    }
+
+    drawCursorHandle(context, startX, top, bottom, state.cursors.start);
+    drawCursorHandle(context, endX, top, bottom, state.cursors.end);
+
+    context.restore();
+}
+
+function drawCursorHandle(context, x, top, bottom, seconds) {
+    const halfWidth = CURSOR_HEAD_WIDTH / 2;
+    const headTop = top - CURSOR_HEAD_HEIGHT - CURSOR_TIP_HEIGHT;
+    const headBottom = headTop + CURSOR_HEAD_HEIGHT;
+
+    context.strokeStyle = '#cf6a32';
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(x, top);
+    context.lineTo(x, bottom);
+    context.stroke();
+
+    context.beginPath();
+    context.moveTo(x - halfWidth, headTop);
+    context.lineTo(x + halfWidth, headTop);
+    context.lineTo(x + halfWidth, headBottom);
+    context.lineTo(x + 5, headBottom);
+    context.lineTo(x, headBottom + CURSOR_TIP_HEIGHT);
+    context.lineTo(x - 5, headBottom);
+    context.lineTo(x - halfWidth, headBottom);
+    context.closePath();
+    context.fillStyle = '#cf6a32';
+    context.fill();
+
+    context.fillStyle = '#fff';
+    context.font = '11px Georgia, "Segoe UI", sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(formatClock(seconds), x, headTop + CURSOR_HEAD_HEIGHT / 2);
+}
+
+function pickCursor(x) {
+    if (!state.plot) return null;
+
+    const startDistance = Math.abs(secondsToX(state.cursors.start) - x);
+    const endDistance = Math.abs(secondsToX(state.cursors.end) - x);
+
+    if (Math.min(startDistance, endDistance) > CURSOR_GRAB_RADIUS) return null;
+    return startDistance <= endDistance ? 'start' : 'end';
+}
+
+function handlePointerDown(event) {
+    const target = pickCursor(event.clientX - elements.canvas.getBoundingClientRect().left);
+    if (!target) return;
+
+    state.drag = target;
+    elements.canvas.setPointerCapture(event.pointerId);
+    elements.readout.style.display = 'none';
+    event.preventDefault();
+}
+
+function handlePointerUp(event) {
+    if (!state.drag) return;
+
+    state.drag = null;
+    if (elements.canvas.hasPointerCapture(event.pointerId)) {
+        elements.canvas.releasePointerCapture(event.pointerId);
+    }
 }
 
 function handlePointerMove(event) {
-    if (!state.plot || !state.samples || state.samples.length === 0) return;
+    if (!state.plot) return;
 
     const { padding, plotWidth } = state.plot;
     const bounds = elements.canvas.getBoundingClientRect();
     const x = event.clientX - bounds.left;
 
-    if (x < padding.left || x > padding.left + plotWidth) {
+    if (state.drag) {
+        const minimumSpan = getMinimumSpan();
+        const dragged = xToSeconds(x);
+
+        if (state.drag === 'start') {
+            state.cursors.start = clamp(dragged, state.view.start, state.cursors.end - minimumSpan);
+        } else {
+            state.cursors.end = clamp(dragged, state.cursors.start + minimumSpan, state.view.end);
+        }
+
+        updateRangeControls();
+        drawChart();
+        return;
+    }
+
+    elements.canvas.style.cursor = pickCursor(x) ? 'ew-resize' : 'crosshair';
+
+    if (!state.samples || state.samples.length === 0 || x < padding.left || x > padding.left + plotWidth) {
         elements.readout.style.display = 'none';
         return;
     }
 
-    const seconds = ((x - padding.left) / plotWidth) * SECONDS_PER_DAY;
+    const seconds = xToSeconds(x);
     const index = Math.round(seconds / state.stepSeconds);
 
     if (index < 0 || index >= state.samples.length || !Number.isFinite(state.samples[index])) {
@@ -339,15 +564,17 @@ function handlePointerMove(event) {
     elements.readout.style.display = 'block';
     elements.readout.textContent = `${formatClock(seconds)}  ${formatValue(state.samples[index], state.channel?.unit)}`;
     elements.readout.style.left = `${Math.min(x + 12, bounds.width - elements.readout.offsetWidth - 6)}px`;
-    elements.readout.style.top = `${padding.top}px`;
+    elements.readout.style.top = `${padding.top + 6}px`;
 }
 
 async function loadSelectedFile() {
     updateHeader();
+    resetRange();
 
     if (!state.file) {
         state.samples = null;
         updateStats();
+        updateRangeControls();
         drawChart();
         return;
     }
@@ -363,6 +590,7 @@ async function loadSelectedFile() {
     }
 
     updateStats();
+    updateRangeControls();
     drawChart();
 }
 
@@ -378,9 +606,16 @@ async function initialize() {
         loadSelectedFile();
     });
 
-    elements.canvas.addEventListener('mousemove', handlePointerMove);
-    elements.canvas.addEventListener('mouseleave', () => { elements.readout.style.display = 'none'; });
+    elements.canvas.addEventListener('pointerdown', handlePointerDown);
+    elements.canvas.addEventListener('pointermove', handlePointerMove);
+    elements.canvas.addEventListener('pointerup', handlePointerUp);
+    elements.canvas.addEventListener('pointercancel', handlePointerUp);
+    elements.canvas.addEventListener('pointerleave', () => { elements.readout.style.display = 'none'; });
+    elements.zoomButton.addEventListener('click', applyZoom);
+    elements.resetButton.addEventListener('click', resetZoom);
     window.addEventListener('resize', drawChart);
+
+    updateRangeControls();
 
     try {
         const manifest = await fetchManifest();
