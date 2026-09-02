@@ -34,7 +34,8 @@ M95PxxModule::M95PxxModule()
 
 void M95PxxModule::Begin()
 {
-    m_Spi.begin(M95PXX_SPI_SCK_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_CS_PIN);
+    // SPIClass::begin() takes sck, miso, mosi, ss in that order.
+    m_Spi.begin(M95PXX_SPI_SCK_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_CS_PIN);
     pinMode(M95PXX_SPI_CS_PIN, OUTPUT);
     digitalWrite(M95PXX_SPI_CS_PIN, HIGH);
 
@@ -70,9 +71,17 @@ void M95PxxModule::Begin()
     m_LfsCfg.prog_buffer = m_ProgCache;
     m_LfsCfg.lookahead_buffer = m_Lookahead;
 
+    // A silent bus reads as all-zero or all-one; formatting it would stall on 8192 page erases.
+    if((manufacturer == 0x00) || (manufacturer == 0xFF))
+    {
+        Serial.println("[M95Pxx] No answer from the device, storage disabled.");
+        m_IsReady = false;
+        return;
+    }
+
 	if(MountLittleFs(true) == false)
 	{
-        Serial.println("[M95Pxx] LittleFS bootstrap failed (a dead SPI link reads JEDEC 00 00 00 or FF FF FF).");
+        Serial.println("[M95Pxx] LittleFS bootstrap failed.");
 		m_IsReady = false;
     }
 }
