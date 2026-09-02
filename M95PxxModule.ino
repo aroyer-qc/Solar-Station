@@ -40,19 +40,12 @@ void M95PxxModule::Begin()
     uint8_t manufacturer = 0;
     uint8_t type = 0;
     uint8_t capacity = 0;
-    
-  #ifdef USE_DEBUG_M95P
-    if(ReadJedecId(manufacturer, type, capacity))
-    {
-        Serial.printf("[M95Pxx] Init done. SCK=%u MOSI=%u MISO=%u CS=%u SR=0x%02X JEDEC=%02X %02X %02X\n",
-                       M95PXX_SPI_SCK_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_CS_PIN, status, manufacturer, type, capacity);
-    }
-    else
-    {
-        Serial.printf("[M95Pxx] Init done. SCK=%u MOSI=%u MISO=%u CS=%u SR=0x%02X JEDEC=NA\n",
-                       M95PXX_SPI_SCK_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_CS_PIN, status);
-    }
-  #endif
+
+    m_IsReady = true;
+    ReadJedecId(manufacturer, type, capacity);
+    Serial.printf("[M95Pxx] Init. SCK=%u MOSI=%u MISO=%u CS=%u SR=0x%02X JEDEC=%02X %02X %02X\n",
+                  M95PXX_SPI_SCK_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_CS_PIN,
+                  status, manufacturer, type, capacity);
 
     m_LfsCfg.context = this;
     m_LfsCfg.read = &M95PxxModule::LfsBlockRead;
@@ -70,13 +63,9 @@ void M95PxxModule::Begin()
     m_LfsCfg.prog_buffer = m_ProgCache;
     m_LfsCfg.lookahead_buffer = m_Lookahead;
 
-    m_IsReady = true;
-
 	if(MountLittleFs(true) == false)
 	{
-        ReadJedecId(manufacturer, type, capacity);
-        Serial.printf("[M95Pxx] LittleFS bootstrap failed. SR=0x%02X JEDEC=%02X %02X %02X (a dead SPI link reads 00 00 00 or FF FF FF)\n",
-                      status, manufacturer, type, capacity);
+        Serial.println("[M95Pxx] LittleFS bootstrap failed (a dead SPI link reads JEDEC 00 00 00 or FF FF FF).");
 		m_IsReady = false;
     }
 }
