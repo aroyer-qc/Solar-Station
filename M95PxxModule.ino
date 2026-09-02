@@ -107,8 +107,8 @@ String M95PxxModule::GetDiagnosticSummary() const
     return String(buffer);
 }
 
-// Destructive: writes raw pages then reformats. Tells whether CMD_PAGE_ERASE really erases only
-// LFS_BLOCK_SIZE bytes, which littlefs relies on.
+// Destructive: writes raw pages then reformats. Checks that CMD_PAGE_ERASE only clears
+// LFS_BLOCK_SIZE bytes and that the declared capacity is really addressable.
 String M95PxxModule::RunStorageSelfTest()
 {
     if(!m_IsReady)
@@ -118,6 +118,7 @@ String M95PxxModule::RunStorageSelfTest()
 
     const uint32_t addressA = STORAGE_SIZE_BYTES - (2u * LFS_BLOCK_SIZE);
     const uint32_t addressB = STORAGE_SIZE_BYTES - LFS_BLOCK_SIZE;
+    const uint32_t mirrorB  = addressB - (STORAGE_SIZE_BYTES / 2u);
 
     static uint8_t buffer[LFS_BLOCK_SIZE];
 
@@ -125,6 +126,7 @@ String M95PxxModule::RunStorageSelfTest()
 
     bool eraseOk = ErasePage(addressA);
     eraseOk = ErasePage(addressB) && eraseOk;
+    eraseOk = ErasePage(mirrorB) && eraseOk;
 
     memset(buffer, 0xA5, sizeof(buffer));
     bool writeOk = WriteData(addressA, buffer, sizeof(buffer));
@@ -137,6 +139,10 @@ String M95PxxModule::RunStorageSelfTest()
 
     ReadData(addressB, buffer, sizeof(buffer));
     bool storedB = (buffer[0] == 0x5A) && (buffer[sizeof(buffer) - 1] == 0x5A);
+
+    // A device half the declared size would expose the page written at addressB here too.
+    ReadData(mirrorB, buffer, sizeof(buffer));
+    bool aliased = (buffer[0] == 0x5A) && (buffer[sizeof(buffer) - 1] == 0x5A);
 
     ErasePage(addressA);
 
@@ -158,6 +164,8 @@ String M95PxxModule::RunStorageSelfTest()
     report += (erasedA ? "yes" : "NO");
     report += " neighbour_survived=";
     report += (survivedB ? "yes" : "NO");
+    report += " half_size_alias=";
+    report += (aliased ? "YES" : "no");
 
     FormatLittleFs();
     MountLittleFs(true);
