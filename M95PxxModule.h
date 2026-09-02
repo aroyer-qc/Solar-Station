@@ -49,7 +49,8 @@ class M95PxxModule
         static constexpr uint8_t CMD_READ = 0x03;
         static constexpr uint8_t CMD_WRITE = 0x02;
         static constexpr uint8_t CMD_RDID = 0x9F;
-		static constexpr uint8_t CMD_PAGE_ERASE = 0xD8;
+		// 0xD8 is the sector erase and wipes neighbouring littlefs blocks; 0xDB is the 512 byte page erase.
+		static constexpr uint8_t CMD_PAGE_ERASE = 0xDB;
 
         static constexpr uint32_t LFS_READ_SIZE = 16u;
         static constexpr uint32_t LFS_PROG_SIZE = 512u;
