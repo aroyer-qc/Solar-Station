@@ -26,7 +26,8 @@ const state = {
     file: null,
     samples: null,
     stepSeconds: 1,
-    plot: null
+    plot: null,
+    totalBytes: 0
 };
 
 function setMessage(text) {
@@ -120,7 +121,9 @@ function updateHeader() {
         elements.download.href = `/api/logs/download?name=${encodeURIComponent(state.file.name)}`;
         elements.download.style.display = '';
     } else {
-        elements.subtitle.textContent = 'No recorded data for this log yet.';
+        elements.subtitle.textContent = state.totalBytes > 0
+            ? 'No data recorded yet. Logging only starts once the system clock is valid (NTP).'
+            : 'Log storage is unavailable: the M95P32 filesystem is not mounted.';
         elements.download.style.display = 'none';
     }
 }
@@ -375,6 +378,7 @@ async function initialize() {
 
     try {
         const manifest = await fetchManifest();
+        state.totalBytes = Number(manifest.totalBytes || 0);
         state.channels = Array.isArray(manifest.channels) ? manifest.channels : [];
         state.files = Array.isArray(manifest.files) ? manifest.files : [];
     } catch (error) {
