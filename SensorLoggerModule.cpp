@@ -30,6 +30,7 @@
 
 #include "SensorLoggerModule.h"
 #include "SchedulerModule.h"
+#include <math.h>
 
 //-------------------------------------------------------------------------------------------------
 // Define(s)
@@ -38,6 +39,8 @@
 #define SENSOR_LOGGER_DAY_TAG_LENGTH        6
 #define SENSOR_LOGGER_FILE_EXTENSION        ".bin"
 #define SENSOR_LOGGER_DEFAULT_RETENTION     80
+#define SENSOR_LOGGER_SECONDS_PER_DAY       86400u
+#define SENSOR_LOGGER_GAP_CHUNK_SLOT        256
 
 //-------------------------------------------------------------------------------------------------
 // Public method(s)
@@ -48,6 +51,7 @@ SensorLoggerModule::SensorLoggerModule()
     , m_Channel{}
     , m_ChannelCount(0)
     , m_CurrentDayKey(-1)
+    , m_CurrentDaySeconds(0)
     , m_RetentionPercent(SENSOR_LOGGER_DEFAULT_RETENTION)
 {
 }
@@ -61,6 +65,7 @@ void SensorLoggerModule::Begin(M95PxxModule* pStorage)
     m_pStorage     = pStorage;
     m_CurrentDayKey = -1;
     m_CurrentDayTag = "";
+    m_CurrentDaySeconds = 0;
 
     for(uint8_t i = 0; i < m_ChannelCount; i++)
     {
@@ -301,7 +306,7 @@ bool SensorLoggerModule::IsChannelIdValid(int8_t ChannelID) const
 
 //-------------------------------------------------------------------------------------------------
 
-bool SensorLoggerModule::BuildCurrentDay(String& OutDayTag, int32_t& OutDayKey) const
+bool SensorLoggerModule::BuildCurrentDay(String& OutDayTag, int32_t& OutDayKey, uint32_t& OutSecondsOfDay) const
 {
     if(!IsSystemTimeValid())
     {
@@ -322,8 +327,9 @@ bool SensorLoggerModule::BuildCurrentDay(String& OutDayTag, int32_t& OutDayKey) 
     char Buffer[SENSOR_LOGGER_DAY_TAG_LENGTH + 1];
 
     snprintf(Buffer, sizeof(Buffer), "%02d%02d%02d", Year, Month, Day);
-    OutDayTag = String(Buffer);
-    OutDayKey = (Year * 10000) + (Month * 100) + Day;
+    OutDayTag       = String(Buffer);
+    OutDayKey       = (Year * 10000) + (Month * 100) + Day;
+    OutSecondsOfDay = (uint32_t)((LocalTimeInfo.tm_hour * 3600) + (LocalTimeInfo.tm_min * 60) + LocalTimeInfo.tm_sec);
     return true;
 }
 
@@ -331,13 +337,16 @@ bool SensorLoggerModule::BuildCurrentDay(String& OutDayTag, int32_t& OutDayKey) 
 
 bool SensorLoggerModule::EnsureDayReady()
 {
-    String  DayTag;
-    int32_t DayKey = -1;
+    String   DayTag;
+    int32_t  DayKey        = -1;
+    uint32_t SecondsOfDay  = 0;
 
-    if(!IsStorageReady() || !BuildCurrentDay(DayTag, DayKey))
+    if(!IsStorageReady() || !BuildCurrentDay(DayTag, DayKey, SecondsOfDay))
     {
         return false;
     }
+
+    m_CurrentDaySeconds = SecondsOfDay;
 
     if(m_CurrentDayKey != DayKey)
     {
@@ -372,7 +381,7 @@ void SensorLoggerModule::FlushChannel(Channel_t& Channel, uint32_t NowMs)
     {
         float Average = Channel.Sum / (float)Channel.Count;
 
-        if(!AppendValue(Channel, Average))
+        if(!WriteValueAtCurrentSlot(Channel, Average))
         {
           #ifdef USE_DEBUG_APP
             Serial.printf("[LOG] Write failed: %s_%s.bin\n", Channel.pFilePrefix, m_CurrentDayTag.c_str());
@@ -386,14 +395,63 @@ void SensorLoggerModule::FlushChannel(Channel_t& Channel, uint32_t NowMs)
 
 //-------------------------------------------------------------------------------------------------
 
-bool SensorLoggerModule::AppendValue(const Channel_t& Channel, float Value)
+bool SensorLoggerModule::WriteValueAtCurrentSlot(const Channel_t& Channel, float Value)
 {
     if((m_pStorage == nullptr) || (m_CurrentDayTag.length() != SENSOR_LOGGER_DAY_TAG_LENGTH))
     {
         return false;
     }
 
-    return m_pStorage->LittleFsAppend(BuildPath(Channel.pFilePrefix, m_CurrentDayTag), (const uint8_t*)&Value, sizeof(Value));
+    uint32_t SlotCount = GetSlotCountPerDay(Channel);
+    uint32_t Slot      = (m_CurrentDaySeconds * 1000u) / Channel.AverageWindowMs;
+
+    if(Slot >= SlotCount)
+    {
+        Slot = SlotCount - 1u;
+    }
+
+    String Path         = BuildPath(Channel.pFilePrefix, m_CurrentDayTag);
+    size_t CurrentBytes = 0;
+
+    m_pStorage->LittleFsGetFileSize(Path, CurrentBytes);
+    uint32_t ExistingSlots = (uint32_t)(CurrentBytes / sizeof(float));
+
+    if((Slot > ExistingSlots) && !FillGapSlots(Path, ExistingSlots, Slot))
+    {
+        return false;
+    }
+
+    return m_pStorage->LittleFsWriteAt(Path, Slot * sizeof(float), (const uint8_t*)&Value, sizeof(Value));
+}
+
+//-------------------------------------------------------------------------------------------------
+
+// Unrecorded slots must hold NaN: LittleFS pads a seek beyond EOF with zeros, a legitimate reading.
+bool SensorLoggerModule::FillGapSlots(const String& Path, uint32_t FromSlot, uint32_t ToSlot)
+{
+    float GapChunk[SENSOR_LOGGER_GAP_CHUNK_SLOT];
+
+    for(size_t i = 0; i < SENSOR_LOGGER_GAP_CHUNK_SLOT; i++)
+    {
+        GapChunk[i] = NAN;
+    }
+
+    uint32_t Slot = FromSlot;
+
+    while(Slot < ToSlot)
+    {
+        uint32_t Remaining = ToSlot - Slot;
+        uint32_t Count     = (Remaining < SENSOR_LOGGER_GAP_CHUNK_SLOT) ? Remaining : SENSOR_LOGGER_GAP_CHUNK_SLOT;
+
+        if(!m_pStorage->LittleFsWriteAt(Path, Slot * sizeof(float), (const uint8_t*)GapChunk, Count * sizeof(float)))
+        {
+            return false;
+        }
+
+        Slot += Count;
+    }
+
+    return true;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -499,6 +557,13 @@ void SensorLoggerModule::EnforceRetention()
 
 //-------------------------------------------------------------------------------------------------
 // Private static method(s)
+//-------------------------------------------------------------------------------------------------
+
+uint32_t SensorLoggerModule::GetSlotCountPerDay(const Channel_t& Channel)
+{
+    return (SENSOR_LOGGER_SECONDS_PER_DAY * 1000u) / Channel.AverageWindowMs;
+}
+
 //-------------------------------------------------------------------------------------------------
 
 // Walks the {"name":"..","size":N} entries produced by LittleFsListFilesJson(), one call per entry.

@@ -25,10 +25,8 @@ const state = {
     channel: null,
     file: null,
     samples: null,
-    startSeconds: 0,
     stepSeconds: 1,
-    plot: null,
-    deviceNow: null
+    plot: null
 };
 
 function setMessage(text) {
@@ -68,29 +66,6 @@ function formatBytes(bytes) {
 function getRequestedType() {
     const params = new URLSearchParams(window.location.search);
     return params.get('type') || '';
-}
-
-// Device clock, so a day tag can be compared against the logger's local date.
-async function fetchDeviceNow() {
-    try {
-        const response = await fetch('/portal/status', { cache: 'no-store' });
-        if (!response.ok) return null;
-        const text = await response.text();
-        const map = {};
-        text.split('\n').forEach((line) => {
-            const index = line.indexOf('=');
-            if (index > 0) map[line.slice(0, index).trim()] = line.slice(index + 1).trim();
-        });
-        if (map.timeValid !== '1') return null;
-        const match = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/.exec(map.localDateTime || '');
-        if (!match) return null;
-        return {
-            dayTag: `${match[1].slice(2)}${match[2]}${match[3]}`,
-            secondsOfDay: Number(match[4]) * 3600 + Number(match[5]) * 60 + Number(match[6])
-        };
-    } catch (error) {
-        return null;
-    }
 }
 
 async function fetchManifest() {
@@ -150,21 +125,27 @@ function updateHeader() {
     }
 }
 
-// Samples carry no timestamp, so the series is anchored on its last point: the device clock for
-// today, end of day otherwise. Both assume the logger ran without interruption.
-function computeTimeline(count, periodMs) {
-    const stepSeconds = Math.max(periodMs, 1) / 1000;
-    const isToday = state.deviceNow && state.file && state.deviceNow.dayTag === state.file.date;
-    const endSeconds = isToday ? state.deviceNow.secondsOfDay : SECONDS_PER_DAY;
-    const startSeconds = Math.max(0, endSeconds - (count - 1) * stepSeconds);
-    return { startSeconds, stepSeconds };
-}
-
 function updateStats() {
     const unit = state.channel ? state.channel.unit : '';
     const values = state.samples;
 
-    if (!values || values.length === 0) {
+    let min = Infinity;
+    let max = -Infinity;
+    let sum = 0;
+    let count = 0;
+
+    if (values) {
+        for (let i = 0; i < values.length; i++) {
+            const value = values[i];
+            if (!Number.isFinite(value)) continue;
+            if (value < min) min = value;
+            if (value > max) max = value;
+            sum += value;
+            count++;
+        }
+    }
+
+    if (count === 0) {
         elements.statMin.textContent = '--';
         elements.statMax.textContent = '--';
         elements.statAvg.textContent = '--';
@@ -173,20 +154,10 @@ function updateStats() {
         return;
     }
 
-    let min = Infinity;
-    let max = -Infinity;
-    let sum = 0;
-    for (let i = 0; i < values.length; i++) {
-        const value = values[i];
-        if (value < min) min = value;
-        if (value > max) max = value;
-        sum += value;
-    }
-
     elements.statMin.textContent = formatValue(min, unit);
     elements.statMax.textContent = formatValue(max, unit);
-    elements.statAvg.textContent = formatValue(sum / values.length, unit);
-    elements.statCount.textContent = String(values.length);
+    elements.statAvg.textContent = formatValue(sum / count, unit);
+    elements.statCount.textContent = String(count);
     elements.statPeriod.textContent = `${state.stepSeconds} s`;
 }
 
@@ -195,9 +166,11 @@ function buildColumns(width) {
     const columns = new Array(width).fill(null);
 
     for (let i = 0; i < values.length; i++) {
-        const seconds = state.startSeconds + i * state.stepSeconds;
-        const column = Math.min(width - 1, Math.max(0, Math.round((seconds / SECONDS_PER_DAY) * (width - 1))));
         const value = values[i];
+        if (!Number.isFinite(value)) continue;
+
+        const seconds = i * state.stepSeconds;
+        const column = Math.min(width - 1, Math.max(0, Math.round((seconds / SECONDS_PER_DAY) * (width - 1))));
         const bucket = columns[column];
         if (bucket === null) {
             columns[column] = { min: value, max: value, sum: value, count: 1 };
@@ -232,7 +205,8 @@ function drawChart() {
     let peak = 0;
     if (state.samples) {
         for (let i = 0; i < state.samples.length; i++) {
-            if (state.samples[i] > peak) peak = state.samples[i];
+            const value = state.samples[i];
+            if (Number.isFinite(value) && value > peak) peak = value;
         }
     }
     const yMax = peak > 0 ? peak * Y_AXIS_HEADROOM : 1;
@@ -285,32 +259,52 @@ function drawChart() {
     }
 
     const columns = buildColumns(Math.round(plotWidth));
-    const points = [];
+
+    // Empty columns are real recording gaps, so each run of samples is drawn as its own segment.
+    const segments = [];
+    let current = null;
     for (let i = 0; i < columns.length; i++) {
-        if (columns[i]) points.push({ x: padding.left + i, bucket: columns[i] });
+        if (columns[i]) {
+            if (current === null) {
+                current = [];
+                segments.push(current);
+            }
+            current.push({ x: padding.left + i, bucket: columns[i] });
+        } else {
+            current = null;
+        }
     }
-    if (points.length === 0) return;
 
-    context.fillStyle = 'rgba(44, 122, 90, 0.18)';
-    context.beginPath();
-    context.moveTo(points[0].x, toY(points[0].bucket.max));
-    points.forEach((point) => context.lineTo(point.x, toY(point.bucket.max)));
-    for (let i = points.length - 1; i >= 0; i--) {
-        context.lineTo(points[i].x, toY(points[i].bucket.min));
+    if (segments.length === 0) {
+        context.fillStyle = '#58685f';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText('No samples for this day.', padding.left + plotWidth / 2, padding.top + plotHeight / 2);
+        return;
     }
-    context.closePath();
-    context.fill();
 
-    context.strokeStyle = '#2c7a5a';
-    context.lineWidth = 1.6;
-    context.lineJoin = 'round';
-    context.beginPath();
-    points.forEach((point, index) => {
-        const y = toY(point.bucket.sum / point.bucket.count);
-        if (index === 0) context.moveTo(point.x, y);
-        else context.lineTo(point.x, y);
+    segments.forEach((points) => {
+        context.fillStyle = 'rgba(44, 122, 90, 0.18)';
+        context.beginPath();
+        context.moveTo(points[0].x, toY(points[0].bucket.max));
+        points.forEach((point) => context.lineTo(point.x, toY(point.bucket.max)));
+        for (let i = points.length - 1; i >= 0; i--) {
+            context.lineTo(points[i].x, toY(points[i].bucket.min));
+        }
+        context.closePath();
+        context.fill();
+
+        context.strokeStyle = '#2c7a5a';
+        context.lineWidth = 1.6;
+        context.lineJoin = 'round';
+        context.beginPath();
+        points.forEach((point, index) => {
+            const y = toY(point.bucket.sum / point.bucket.count);
+            if (index === 0) context.moveTo(point.x, y);
+            else context.lineTo(point.x, y);
+        });
+        context.stroke();
     });
-    context.stroke();
 }
 
 function handlePointerMove(event) {
@@ -326,9 +320,9 @@ function handlePointerMove(event) {
     }
 
     const seconds = ((x - padding.left) / plotWidth) * SECONDS_PER_DAY;
-    const index = Math.round((seconds - state.startSeconds) / state.stepSeconds);
+    const index = Math.round(seconds / state.stepSeconds);
 
-    if (index < 0 || index >= state.samples.length) {
+    if (index < 0 || index >= state.samples.length || !Number.isFinite(state.samples[index])) {
         elements.readout.style.display = 'none';
         return;
     }
@@ -352,9 +346,7 @@ async function loadSelectedFile() {
     setMessage('Loading samples...');
     try {
         state.samples = await fetchSamples(state.file.name);
-        const timeline = computeTimeline(state.samples.length, state.file.periodMs || 1000);
-        state.startSeconds = timeline.startSeconds;
-        state.stepSeconds = timeline.stepSeconds;
+        state.stepSeconds = Math.max(state.file.periodMs || 1000, 1) / 1000;
         setMessage('');
     } catch (error) {
         state.samples = null;
@@ -382,8 +374,7 @@ async function initialize() {
     window.addEventListener('resize', drawChart);
 
     try {
-        const [manifest, deviceNow] = await Promise.all([fetchManifest(), fetchDeviceNow()]);
-        state.deviceNow = deviceNow;
+        const manifest = await fetchManifest();
         state.channels = Array.isArray(manifest.channels) ? manifest.channels : [];
         state.files = Array.isArray(manifest.files) ? manifest.files : [];
     } catch (error) {

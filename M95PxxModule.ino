@@ -376,6 +376,36 @@ bool M95PxxModule::LittleFsAppend(const String& Path, const uint8_t* pData, size
     return (written == (lfs_ssize_t)Length) && (closeResult == 0);
 }
 
+bool M95PxxModule::LittleFsWriteAt(const String& Path, uint32_t Offset, const uint8_t* pData, size_t Length)
+{
+    if(!MountLittleFs(true) || !LfsPathIsValid(Path) || pData == nullptr || Length == 0)
+    {
+        return false;
+    }
+
+    String normalized = Path;
+    if(normalized.startsWith("/"))
+    {
+        normalized = normalized.substring(1);
+    }
+
+    lfs_file_t file;
+    if(lfs_file_open(&m_Lfs, &file, normalized.c_str(), LFS_O_WRONLY | LFS_O_CREAT) < 0)
+    {
+        return false;
+    }
+
+    if(lfs_file_seek(&m_Lfs, &file, (lfs_soff_t)Offset, LFS_SEEK_SET) < 0)
+    {
+        lfs_file_close(&m_Lfs, &file);
+        return false;
+    }
+
+    lfs_ssize_t written = lfs_file_write(&m_Lfs, &file, pData, Length);
+    int closeResult = lfs_file_close(&m_Lfs, &file);
+    return (written == (lfs_ssize_t)Length) && (closeResult == 0);
+}
+
 bool M95PxxModule::LittleFsReadRange(const String& Path, uint32_t Offset, uint8_t* pBuffer, size_t Length, size_t& OutRead)
 {
     OutRead = 0;

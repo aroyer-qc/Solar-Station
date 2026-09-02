@@ -26,6 +26,7 @@ class M95PxxModule
         bool            IsLittleFsMounted() const { return m_LittleFsMounted; }
 
         bool            LittleFsAppend(const String& Path, const uint8_t* pData, size_t Length);
+        bool            LittleFsWriteAt(const String& Path, uint32_t Offset, const uint8_t* pData, size_t Length);
         bool            LittleFsReadRange(const String& Path, uint32_t Offset, uint8_t* pBuffer, size_t Length, size_t& OutRead);
         bool            LittleFsGetFileSize(const String& Path, size_t& OutSize) const;
         bool            LittleFsExists(const String& Path) const;
