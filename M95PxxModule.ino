@@ -130,6 +130,11 @@ bool M95PxxModule::ReadData(uint32_t Address, uint8_t* pBuffer, size_t Length)
 
 bool M95PxxModule::ErasePage(uint32_t Address)
 {
+    if(!m_IsReady)
+    {
+        return false;
+    }
+
     Address &= ~(uint32_t)(LFS_BLOCK_SIZE - 1);
 
     WriteEnable();
@@ -138,9 +143,8 @@ bool M95PxxModule::ErasePage(uint32_t Address)
     m_Spi.transfer((Address >> 8) & 0xFF);
     m_Spi.transfer(Address & 0xFF);
     EndTransaction();
-    WaitWriteComplete(100); // timeout à ajuster si besoin
 
-    return true;
+    return WaitWriteComplete(100);
 }
 
 bool M95PxxModule::WriteData(uint32_t Address, const uint8_t* pData, size_t Length)
@@ -162,8 +166,7 @@ bool M95PxxModule::WriteData(uint32_t Address, const uint8_t* pData, size_t Leng
     }
 
 	EndTransaction();
-    WaitWriteComplete();
-    return true;
+    return WaitWriteComplete();
 }
 
 uint8_t M95PxxModule::ReadStatusRegister()
@@ -183,7 +186,7 @@ void M95PxxModule::WriteEnable()
 	EndTransaction();
 }
 
-void M95PxxModule::WaitWriteComplete(uint32_t TimeoutMs)
+bool M95PxxModule::WaitWriteComplete(uint32_t TimeoutMs)
 {
     uint32_t start = millis();
 
@@ -191,13 +194,12 @@ void M95PxxModule::WaitWriteComplete(uint32_t TimeoutMs)
     {
         if((ReadStatusRegister() & 0x01u) == 0)
         {
-            return;
+            return true;
         }
     }
 
-  #ifdef USE_DEBUG_M95P
     Serial.println("[M95Pxx] Write timeout.");
-  #endif	
+    return false;
 }
 
 bool M95PxxModule::ReadJedecId(uint8_t& Manufacturer, uint8_t& Type, uint8_t& Capacity)

@@ -39,7 +39,7 @@ class M95PxxModule
     private:
 
         void            WriteEnable();
-        void            WaitWriteComplete(uint32_t TimeoutMs = 100);
+        bool            WaitWriteComplete(uint32_t TimeoutMs = 100);
 		void			StartTransaction(uint8_t Command);
 		void			EndTransaction();
 
