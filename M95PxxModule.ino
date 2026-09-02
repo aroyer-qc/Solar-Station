@@ -19,6 +19,7 @@ extern "C" {
 
 M95PxxModule::M95PxxModule()
     : m_Spi(VSPI),
+      m_IsReady(false),
       m_LittleFsMounted(false)
 {
     memset(&m_Lfs, 0, sizeof(m_Lfs));
@@ -70,11 +71,13 @@ void M95PxxModule::Begin()
     m_LfsCfg.lookahead_buffer = m_Lookahead;
 
     m_IsReady = true;
-	
+
 	if(MountLittleFs(true) == false)
 	{
+        ReadJedecId(manufacturer, type, capacity);
+        Serial.printf("[M95Pxx] LittleFS bootstrap failed. SR=0x%02X JEDEC=%02X %02X %02X (a dead SPI link reads 00 00 00 or FF FF FF)\n",
+                      status, manufacturer, type, capacity);
 		m_IsReady = false;
-        Serial.println("[M95Pxx] LittleFS bootstrap preparation failed");
     }
 }
 
@@ -308,9 +311,7 @@ bool M95PxxModule::MountLittleFs(bool FormatOnFail)
 
     if(result < 0)
     {
-      #ifdef USE_DEBUG_M95P		
         Serial.printf("[M95Pxx] lfs_mount failed: %d\n", result);
-	  #endif	
         return false;
     }
 
@@ -328,9 +329,7 @@ bool M95PxxModule::FormatLittleFs()
     int result = lfs_format(&m_Lfs, &m_LfsCfg);
     if(result < 0)
     {
-      #ifdef USE_DEBUG_M95P		
         Serial.printf("[M95Pxx] lfs_format failed: %d\n", result);
-	  #endif	
         return false;
     }
 
