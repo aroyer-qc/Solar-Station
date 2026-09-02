@@ -16,6 +16,7 @@ class M95PxxModule
         void            Begin();
         bool            IsReady();
         String          GetDiagnosticSummary() const;
+        String          RunStorageSelfTest();
 
         bool            ReadData(uint32_t Address, uint8_t* pBuffer, size_t Length);
         bool            WriteData(uint32_t Address, const uint8_t* pData, size_t Length);

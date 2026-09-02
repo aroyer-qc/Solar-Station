@@ -53,6 +53,7 @@ extern bool 	IsTrackingTestOverrideActive		    ();
 extern String 	GetTrackingOverrideStatusSummary	    ();
 extern String 	GetTrackingOverrideLastFailureSummary	();
 extern String 	GetSensorLogsManifestJson			    ();
+extern String 	GetStorageSelfTestReport			    ();
 extern bool 	GetSensorLogFileInfo				    (const String& requestedName, uint32_t& outSizeBytes);
 extern bool 	ReadSensorLogFileRange				    (const String& requestedName, uint32_t offsetBytes, uint8_t* pBuffer, size_t lengthBytes);
 extern void 	RequestMicrostepConfigApply		        ();
@@ -442,6 +443,7 @@ void WebServerModule::setupServer()
     server.on("/portal/status/", 		HTTP_GET, [this]() { this->HandleGetPortalStatus(); });
 
     server.on("/api/logs",    	    		HTTP_GET, [this]() { this->HandleGetSensorLogsManifest(); });
+    server.on("/api/storage/test",			HTTP_GET, [this]() { this->HandleStorageSelfTest(); });
     server.on("/api/logs/download", 		HTTP_GET, [this]() { this->HandleDownloadSensorLog(); });
     server.on("/api/config", 				HTTP_GET, [this]() { this->HandleGetApiConfig(); });
     server.on("/api/config", 				HTTP_POST, [this]() { this->HandleSaveApiConfig(); });
@@ -2145,6 +2147,11 @@ void WebServerModule::HandleGetJogSessionDelta()
 void WebServerModule::HandleGetSensorLogsManifest()
 {
     server.send(200, "application/json", GetSensorLogsManifestJson());
+}
+
+void WebServerModule::HandleStorageSelfTest()
+{
+    server.send(200, "text/plain", GetStorageSelfTestReport());
 }
 
 void WebServerModule::handleSensorLogsPage()

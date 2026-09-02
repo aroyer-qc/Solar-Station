@@ -54,6 +54,7 @@ class WebServerModule
         void            HandleApiOutput                     ();
         bool            ExecuteOutputActionFromRequest      (String& errorMessage);
         void            HandleGetSensorLogsManifest         ();
+        void            HandleStorageSelfTest               ();
         void            HandleDownloadSensorLog             ();
         void            HandleNotFound                      ();
         String          formatOutputState                   (uint8_t outputIndex);

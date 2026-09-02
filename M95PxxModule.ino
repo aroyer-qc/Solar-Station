@@ -107,6 +107,64 @@ String M95PxxModule::GetDiagnosticSummary() const
     return String(buffer);
 }
 
+// Destructive: writes raw pages then reformats. Tells whether CMD_PAGE_ERASE really erases only
+// LFS_BLOCK_SIZE bytes, which littlefs relies on.
+String M95PxxModule::RunStorageSelfTest()
+{
+    if(!m_IsReady)
+    {
+        return "device not ready";
+    }
+
+    const uint32_t addressA = STORAGE_SIZE_BYTES - (2u * LFS_BLOCK_SIZE);
+    const uint32_t addressB = STORAGE_SIZE_BYTES - LFS_BLOCK_SIZE;
+
+    static uint8_t buffer[LFS_BLOCK_SIZE];
+
+    UnmountLittleFs();
+
+    bool eraseOk = ErasePage(addressA);
+    eraseOk = ErasePage(addressB) && eraseOk;
+
+    memset(buffer, 0xA5, sizeof(buffer));
+    bool writeOk = WriteData(addressA, buffer, sizeof(buffer));
+
+    memset(buffer, 0x5A, sizeof(buffer));
+    writeOk = WriteData(addressB, buffer, sizeof(buffer)) && writeOk;
+
+    ReadData(addressA, buffer, sizeof(buffer));
+    bool storedA = (buffer[0] == 0xA5) && (buffer[sizeof(buffer) - 1] == 0xA5);
+
+    ReadData(addressB, buffer, sizeof(buffer));
+    bool storedB = (buffer[0] == 0x5A) && (buffer[sizeof(buffer) - 1] == 0x5A);
+
+    ErasePage(addressA);
+
+    ReadData(addressA, buffer, sizeof(buffer));
+    bool erasedA = (buffer[0] == 0xFF) && (buffer[sizeof(buffer) - 1] == 0xFF);
+
+    ReadData(addressB, buffer, sizeof(buffer));
+    bool survivedB = (buffer[0] == 0x5A) && (buffer[sizeof(buffer) - 1] == 0x5A);
+
+    String report = "erase=";
+    report += (eraseOk ? "ok" : "fail");
+    report += " write=";
+    report += (writeOk ? "ok" : "fail");
+    report += " pageA_stored=";
+    report += (storedA ? "yes" : "NO");
+    report += " pageB_stored=";
+    report += (storedB ? "yes" : "NO");
+    report += " pageA_erased=";
+    report += (erasedA ? "yes" : "NO");
+    report += " neighbour_survived=";
+    report += (survivedB ? "yes" : "NO");
+
+    FormatLittleFs();
+    MountLittleFs(true);
+
+    return report;
+}
+
 bool M95PxxModule::ReadData(uint32_t Address, uint8_t* pBuffer, size_t Length)
 {
     if(!m_IsReady || pBuffer == nullptr || Length == 0)

@@ -378,6 +378,7 @@ String GetStepperDiagStateLabel(uint8_t diagIndex);
 void InitSensorDataLogging();
 void UpdateSensorDataLogging(uint32_t nowMs);
 String GetSensorLogsManifestJson();
+String GetStorageSelfTestReport();
 bool GetSensorLogFileInfo(const String& requestedName, uint32_t& outSizeBytes);
 bool ReadSensorLogFileRange(const String& requestedName, uint32_t offsetBytes, uint8_t* pBuffer, size_t lengthBytes);
 
@@ -1293,6 +1294,17 @@ void UpdateSensorDataLogging(uint32_t nowMs)
 String GetSensorLogsManifestJson()
 {
     return SensorLogger.GetManifestJson();
+}
+
+//-------------------------------------------------------------------------------------------------
+
+String GetStorageSelfTestReport()
+{
+  #if !USE_M95P32
+    return "M95P32 disabled at build time";
+  #else
+    return Eeprom.RunStorageSelfTest();
+  #endif
 }
 
 //-------------------------------------------------------------------------------------------------
