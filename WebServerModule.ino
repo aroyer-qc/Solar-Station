@@ -443,7 +443,7 @@ void WebServerModule::setupServer()
     server.on("/portal/status/", 		HTTP_GET, [this]() { this->HandleGetPortalStatus(); });
 
     server.on("/api/logs",    	    		HTTP_GET, [this]() { this->HandleGetSensorLogsManifest(); });
-    server.on("/api/storage/test",			HTTP_GET, [this]() { this->HandleStorageSelfTest(); });
+    server.on("/api/storage/test",			HTTP_POST, [this]() { this->HandleStorageSelfTest(); });
     server.on("/api/logs/download", 		HTTP_GET, [this]() { this->HandleDownloadSensorLog(); });
     server.on("/api/config", 				HTTP_GET, [this]() { this->HandleGetApiConfig(); });
     server.on("/api/config", 				HTTP_POST, [this]() { this->HandleSaveApiConfig(); });
