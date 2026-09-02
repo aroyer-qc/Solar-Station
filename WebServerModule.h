@@ -25,6 +25,7 @@ class WebServerModule
         void            handleRestartSystem                 ();
         void            handleConfigPage                    ();
         void            handleDiagnosticsPage               ();
+        void            handleSensorLogsPage                ();
         void            HandleSaveSolarTrackingConfig       ();
         void            HandleResetSolarTrackingConfig      ();
         void            HandleSaveAzimuthConfig             ();

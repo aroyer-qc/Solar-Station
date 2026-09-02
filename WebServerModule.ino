@@ -357,6 +357,19 @@ void WebServerModule::setupServer()
     server.on("/portal/outputs.html", HTTP_GET, [this]() { this->handleConfigPage(); });
     server.on("/portal/diag", HTTP_GET, [this]() { this->handleDiagnosticsPage(); });
     server.on("/portal/diag/", HTTP_GET, [this]() { this->handleDiagnosticsPage(); });
+    server.on("/portal/logs", HTTP_GET, [this]() { this->handleSensorLogsPage(); });
+    server.on("/portal/logs/", HTTP_GET, [this]() { this->handleSensorLogsPage(); });
+    server.on("/portal/logs.html", HTTP_GET, [this]() { this->handleSensorLogsPage(); });
+    server.on("/portal/logs.js", HTTP_GET, [this]() {
+        File file = SPIFFS.open("/portal/logs.js", "r");
+        if(!file)
+        {
+            send404("portal/logs.js not found");
+            return;
+        }
+        server.streamFile(file, "application/javascript");
+        file.close();
+    });
     server.on("/portal/app.js", HTTP_GET, [this]() {
         File file = SPIFFS.open("/portal/app.js", "r");
         if(!file)
@@ -2132,6 +2145,21 @@ void WebServerModule::HandleGetJogSessionDelta()
 void WebServerModule::HandleGetSensorLogsManifest()
 {
     server.send(200, "application/json", GetSensorLogsManifestJson());
+}
+
+void WebServerModule::handleSensorLogsPage()
+{
+    server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+
+    File file = SPIFFS.open("/portal/logs.html", "r");
+    if(!file)
+    {
+        send404("portal/logs.html not found");
+        return;
+    }
+
+    server.streamFile(file, "text/html");
+    file.close();
 }
 
 void WebServerModule::HandleDownloadSensorLog()

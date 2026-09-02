@@ -66,6 +66,16 @@
             font-size: 0.82rem;
             color: #58685f;
         }
+        a.stat {
+            color: inherit;
+            text-decoration: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        a.stat:hover {
+            border-color: var(--accent);
+            box-shadow: 0 6px 18px rgba(44, 122, 90, 0.15);
+        }
+        a.stat .mini { color: var(--accent); }
         .status-row {
             display: flex;
             align-items: center;
@@ -374,18 +384,21 @@
 
         <section class="panel">
             <div class="stats">
-                <div class="stat">
+                <a class="stat" href="/portal/logs?type=ADC_LOAD1">
                     Load 1 current
                     <strong data-live-key="load1CurrentA">{{load1CurrentA}} A</strong>
-                </div>
-                <div class="stat">
+                    <span class="mini">View daily log</span>
+                </a>
+                <a class="stat" href="/portal/logs?type=ADC_LOAD2">
                     Load 2 current
                     <strong data-live-key="load2CurrentA">{{load2CurrentA}} A</strong>
-                </div>
-                <div class="stat">
+                    <span class="mini">View daily log</span>
+                </a>
+                <a class="stat" href="/portal/logs?type=LUX">
                     Ambient light
                     <strong data-live-key="ambientLightLux">{{ambientLightLux}} lx</strong>
-                </div>
+                    <span class="mini">View daily log</span>
+                </a>
                 <div class="stat">
                     Panel voltage
                     <strong data-live-key="pnlVolt">{{pnlVolt}} V</strong>

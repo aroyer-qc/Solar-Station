@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SolarStation Log</title>
+    <style>
+        :root {
+            --bg: #f6f0e5;
+            --panel: #fffaf2;
+            --line: #d9c9a8;
+            --ink: #203028;
+            --accent: #2c7a5a;
+            --accent-2: #cf6a32;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Georgia, "Segoe UI", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top right, #f6d9a6 0, transparent 28%),
+                linear-gradient(180deg, #faf4ea 0%, var(--bg) 100%);
+        }
+        .shell {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .panel {
+            background: rgba(255, 250, 242, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(75, 58, 31, 0.08);
+            margin-bottom: 20px;
+        }
+        h1, h2 { margin-top: 0; }
+        h1 { font-size: 2rem; margin-bottom: 4px; }
+        .subtle { color: #58685f; margin: 0; }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .action {
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--ink);
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        .action:hover { border-color: var(--accent); }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+        }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 0.82rem; color: #58685f; }
+        select {
+            font: inherit;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--ink);
+            min-width: 190px;
+        }
+        .stats {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            margin-top: 18px;
+        }
+        .stat {
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid #eadfc7;
+            font-size: 0.82rem;
+            color: #58685f;
+        }
+        .stat strong {
+            display: block;
+            font-size: 1.3rem;
+            margin-top: 6px;
+            color: var(--ink);
+        }
+        .chart-wrap {
+            position: relative;
+            width: 100%;
+        }
+        canvas {
+            width: 100%;
+            height: 380px;
+            display: block;
+        }
+        #chartReadout {
+            position: absolute;
+            pointer-events: none;
+            padding: 6px 9px;
+            border-radius: 8px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.95);
+            font-size: 0.8rem;
+            white-space: nowrap;
+            display: none;
+        }
+        #message {
+            margin-top: 12px;
+            color: var(--accent-2);
+            min-height: 1.2em;
+        }
+        @media (max-width: 760px) {
+            canvas { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="panel">
+            <h1 id="logTitle">Log</h1>
+            <p class="subtle" id="logSubtitle">Loading log list...</p>
+            <div class="actions">
+                <a class="action" href="/portal">Back to dashboard</a>
+                <a class="action" id="downloadLink" href="#">Download raw file</a>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="controls">
+                <div class="field">
+                    <label for="channelSelect">Log</label>
+                    <select id="channelSelect"></select>
+                </div>
+                <div class="field">
+                    <label for="daySelect">Day</label>
+                    <select id="daySelect"></select>
+                </div>
+            </div>
+            <div id="message"></div>
+        </section>
+
+        <section class="panel">
+            <div class="chart-wrap">
+                <canvas id="logChart"></canvas>
+                <div id="chartReadout"></div>
+            </div>
+            <div class="stats">
+                <div class="stat">Minimum<strong id="statMin">--</strong></div>
+                <div class="stat">Maximum<strong id="statMax">--</strong></div>
+                <div class="stat">Average<strong id="statAvg">--</strong></div>
+                <div class="stat">Samples<strong id="statCount">--</strong></div>
+                <div class="stat">Sample period<strong id="statPeriod">--</strong></div>
+            </div>
+        </section>
+    </div>
+    <script src="/portal/logs.js"></script>
+</body>
+</html>

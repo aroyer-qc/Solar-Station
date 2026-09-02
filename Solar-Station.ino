@@ -89,6 +89,7 @@
 #include "FastAccelStepper.h"
 #include "AzimuthController.h"
 #include "ElevationController.h"
+#include "SensorLoggerModule.h"
 #include <sys/time.h>
 
 #if USE_M95P32
@@ -251,49 +252,6 @@ static constexpr uint32_t LUX_LOG_SAMPLE_INTERVAL_MS = SENSOR_REFRESH_MS;
 static constexpr uint32_t LUX_LOG_AVG_WINDOW_MS = 2000u;
 static constexpr uint8_t LOG_RETENTION_THRESHOLD_PERCENT = 80u;
 
-struct SensorLogChannelState
-{
-    uint32_t LastSampleMs;
-    uint32_t LastFlushMs;
-    float Sum;
-    uint16_t Count;
-};
-
-struct SensorLogDayEntry
-{
-    uint8_t Active;
-    uint8_t Reserved[3];
-    uint32_t DayKey;
-    uint32_t Sequence;
-    uint16_t Load1Count;
-    uint16_t Load2Count;
-    uint16_t LuxCount;
-    uint16_t Reserved2;
-};
-
-struct SensorLogMeta
-{
-    uint8_t Magic[8];
-    uint16_t Version;
-    uint16_t Reserved;
-    uint32_t NextSequence;
-    SensorLogDayEntry Days[13];
-};
-
-static constexpr uint32_t M95_LOG_TOTAL_CAPACITY_BYTES = 4u * 1024u * 1024u;
-static constexpr uint32_t M95_LOG_META_ADDR = 0x000100u;
-static constexpr uint32_t M95_LOG_META_SIZE = 0x0800u;
-static constexpr uint32_t M95_LOG_DATA_START_ADDR = 0x001000u;
-static constexpr uint16_t ADC_LOG_SAMPLES_PER_DAY = 17280u;
-static constexpr uint16_t LUX_LOG_SAMPLES_PER_DAY = 43200u;
-static constexpr uint32_t LOAD1_REGION_BYTES = ADC_LOG_SAMPLES_PER_DAY * sizeof(float);
-static constexpr uint32_t LOAD2_REGION_BYTES = ADC_LOG_SAMPLES_PER_DAY * sizeof(float);
-static constexpr uint32_t LUX_REGION_BYTES = LUX_LOG_SAMPLES_PER_DAY * sizeof(float);
-static constexpr uint32_t M95_LOG_DAY_SLOT_BYTES = LOAD1_REGION_BYTES + LOAD2_REGION_BYTES + LUX_REGION_BYTES;
-static constexpr uint8_t M95_LOG_DAY_SLOT_COUNT = 13u;
-static constexpr uint8_t M95_LOG_MAGIC[8] = {'M','9','5','L','O','G','1','\0'};
-static constexpr uint16_t M95_LOG_VERSION = 1u;
-
 //-------------------------------------------------------------------------------------------------
 //  Typedef(s)
 //-------------------------------------------------------------------------------------------------
@@ -352,14 +310,10 @@ bool                    MpptPollHasRun = false;
 bool                    MpptLinkHealthy = false;
 uint8_t                 MpptLastReadErrorCode = 0;
 uint8_t                 MpptLinkStatusCode = 0;
-SensorLogChannelState   Load1LogState = {0, 0, 0.0f, 0};
-SensorLogChannelState   Load2LogState = {0, 0, 0.0f, 0};
-SensorLogChannelState   LuxLogState = {0, 0, 0.0f, 0};
-int32_t                 CurrentLogDayKey = -1;
-String                  CurrentLogDayTag;
-SensorLogMeta           M95LogMeta;
-bool                    M95LogMetaLoaded = false;
-int8_t                  CurrentLogDaySlot = -1;
+SensorLoggerModule      SensorLogger;
+int8_t                  Load1LogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  Load2LogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
+int8_t                  LuxLogChannelID = SENSOR_LOGGER_INVALID_CHANNEL;
 bool                    StatusLedBlinkState = false;
 uint32_t                StatusLedLastToggleMs = 0;
 int32_t                 SunsetReturnLastAttemptDateKey = -1;
@@ -455,7 +409,6 @@ void setup()
         }
   #endif
 
-    InitSensorDataLogging();
     UpdateLoadCurrentTelemetry(millis());
     AmbientLightLux = ReadAmbientLightLux();
 
@@ -466,6 +419,8 @@ void setup()
     Serial.println("[M95Pxx] Disabled at build time.");
    #endif
   #endif
+
+    InitSensorDataLogging();
 
     InitMosfetOutputs();
     InitStepperDiagInputs();
@@ -1283,422 +1238,46 @@ void loop() // Became Idle task
 
 //-------------------------------------------------------------------------------------------------
 
-static bool IsSixDigits(const String& value)
+static float SensorLogReadLoad1()
 {
-    if(value.length() != 6)
-    {
-        return false;
-    }
-
-    for(size_t i = 0; i < value.length(); i++)
-    {
-        if(value[i] < '0' || value[i] > '9')
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return Load1CurrentA;
 }
 
 //-------------------------------------------------------------------------------------------------
 
-static String BuildSensorLogPath(const char* prefix, const String& dayTag)
+static float SensorLogReadLoad2()
 {
-    return String("/") + prefix + "_" + dayTag + ".bin";
+    return Load2CurrentA;
 }
 
 //-------------------------------------------------------------------------------------------------
 
-static bool ParseSensorLogFileName(const String& rawName, String& typeName, String& dayTag)
+static float SensorLogReadLux()
 {
-    String name = rawName;
-
-    if(name.startsWith("/"))
-    {
-        name = name.substring(1);
-    }
-
-    const char* prefixes[] = {"ADC_Load1_", "ADC_Load2_", "LUX_"};
-    const char* types[] = {"ADC_LOAD1", "ADC_LOAD2", "LUX"};
-
-    for(size_t i = 0; i < 3; i++)
-    {
-        String prefix = String(prefixes[i]);
-        if(!name.startsWith(prefix) || !name.endsWith(".bin"))
-        {
-            continue;
-        }
-
-        String day = name.substring(prefix.length(), name.length() - 4);
-        if(!IsSixDigits(day))
-        {
-            return false;
-        }
-
-        typeName = String(types[i]);
-        dayTag = day;
-        return true;
-    }
-
-    return false;
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static bool BuildCurrentLogDay(String& dayTag, int32_t& dayKey)
-{
-    if(!IsSystemTimeValid())
-    {
-        return false;
-    }
-
-    time_t localNow = GetLocalTimeFromConfigOffset();
-    struct tm localTimeInfo;
-    if(gmtime_r(&localNow, &localTimeInfo) == nullptr)
-    {
-        return false;
-    }
-
-    int year = (localTimeInfo.tm_year + 1900) % 100;
-    int month = localTimeInfo.tm_mon + 1;
-    int day = localTimeInfo.tm_mday;
-
-    char buffer[7];
-    snprintf(buffer, sizeof(buffer), "%02d%02d%02d", year, month, day);
-    dayTag = String(buffer);
-    dayKey = (year * 10000) + (month * 100) + day;
-    return true;
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static String DayKeyToTag(int32_t dayKey)
-{
-    char buffer[7];
-    snprintf(buffer, sizeof(buffer), "%06ld", (long)dayKey);
-    return String(buffer);
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static uint32_t GetDaySlotBaseAddress(uint8_t slotIndex)
-{
-    return M95_LOG_DATA_START_ADDR + ((uint32_t)slotIndex * M95_LOG_DAY_SLOT_BYTES);
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static bool PersistLogMeta()
-{
-  #if !USE_M95P32
-    return false;
-  #else
-    if(!Eeprom.IsReady())
-    {
-        return false;
-    }
-
-    return Eeprom.WriteData(M95_LOG_META_ADDR, (const uint8_t*)&M95LogMeta, sizeof(M95LogMeta));
-  #endif
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static bool LoadOrCreateLogMeta()
-{
-  #if !USE_M95P32
-    return false;
-  #else
-    if(!Eeprom.IsReady())
-    {
-        return false;
-    }
-
-    if(!Eeprom.ReadData(M95_LOG_META_ADDR, (uint8_t*)&M95LogMeta, sizeof(M95LogMeta)))
-    {
-        return false;
-    }
-
-    bool validMagic = true;
-    for(size_t i = 0; i < sizeof(M95_LOG_MAGIC); i++)
-    {
-        if(M95LogMeta.Magic[i] != M95_LOG_MAGIC[i])
-        {
-            validMagic = false;
-            break;
-        }
-    }
-
-    if(!validMagic || M95LogMeta.Version != M95_LOG_VERSION)
-    {
-        memset(&M95LogMeta, 0, sizeof(M95LogMeta));
-        memcpy(M95LogMeta.Magic, M95_LOG_MAGIC, sizeof(M95_LOG_MAGIC));
-        M95LogMeta.Version = M95_LOG_VERSION;
-        M95LogMeta.NextSequence = 1;
-
-        if(!PersistLogMeta())
-        {
-            return false;
-        }
-    }
-
-    M95LogMetaLoaded = true;
-    return true;
-  #endif
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static uint32_t GetUsedLogBytesEstimate()
-{
-    uint32_t total = 0;
-    for(uint8_t i = 0; i < M95_LOG_DAY_SLOT_COUNT; i++)
-    {
-        const SensorLogDayEntry& day = M95LogMeta.Days[i];
-        if(day.Active == 0)
-        {
-            continue;
-        }
-
-        total += ((uint32_t)day.Load1Count * sizeof(float));
-        total += ((uint32_t)day.Load2Count * sizeof(float));
-        total += ((uint32_t)day.LuxCount * sizeof(float));
-    }
-
-    return total;
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static int8_t FindOldestActiveDaySlot()
-{
-    int8_t oldestSlot = -1;
-    uint32_t oldestSeq = 0xFFFFFFFFu;
-
-    for(uint8_t i = 0; i < M95_LOG_DAY_SLOT_COUNT; i++)
-    {
-        const SensorLogDayEntry& day = M95LogMeta.Days[i];
-        if(day.Active == 0)
-        {
-            continue;
-        }
-
-        if(day.Sequence < oldestSeq)
-        {
-            oldestSeq = day.Sequence;
-            oldestSlot = (int8_t)i;
-        }
-    }
-
-    return oldestSlot;
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static void EnforceLogRetentionIfNeeded()
-{
-  #if !USE_M95P32
-    return;
-  #else
-    const size_t thresholdBytes = (Eeprom.LittleFsTotalBytes() * LOG_RETENTION_THRESHOLD_PERCENT) / 100u;
-
-    while(Eeprom.LittleFsUsedBytes() > thresholdBytes)
-    {
-        String filesJson = Eeprom.LittleFsListFilesJson();
-        int32_t oldestDayKey = -1;
-
-        int start = 0;
-        while(true)
-        {
-            int namePos = filesJson.indexOf("\"name\":\"", start);
-            if(namePos < 0)
-            {
-                break;
-            }
-
-            int valueStart = namePos + 8;
-            int valueEnd = filesJson.indexOf('"', valueStart);
-            if(valueEnd < 0)
-            {
-                break;
-            }
-
-            String fileName = filesJson.substring(valueStart, valueEnd);
-            String typeName;
-            String dayTag;
-            if(ParseSensorLogFileName(fileName, typeName, dayTag))
-            {
-                int32_t dayKey = dayTag.toInt();
-                if(oldestDayKey < 0 || dayKey < oldestDayKey)
-                {
-                    oldestDayKey = dayKey;
-                }
-            }
-
-            start = valueEnd + 1;
-        }
-
-        if(oldestDayKey < 0)
-        {
-            break;
-        }
-
-        String oldestTag = DayKeyToTag(oldestDayKey);
-        Eeprom.LittleFsRemove(BuildSensorLogPath("ADC_Load1", oldestTag));
-        Eeprom.LittleFsRemove(BuildSensorLogPath("ADC_Load2", oldestTag));
-        Eeprom.LittleFsRemove(BuildSensorLogPath("LUX", oldestTag));
-    }
-  #endif
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static int8_t FindDaySlotByKey(int32_t dayKey)
-{
-    for(uint8_t i = 0; i < M95_LOG_DAY_SLOT_COUNT; i++)
-    {
-        if(M95LogMeta.Days[i].Active != 0 && (int32_t)M95LogMeta.Days[i].DayKey == dayKey)
-        {
-            return (int8_t)i;
-        }
-    }
-
-    return -1;
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static int8_t FindFreeDaySlot()
-{
-    for(uint8_t i = 0; i < M95_LOG_DAY_SLOT_COUNT; i++)
-    {
-        if(M95LogMeta.Days[i].Active == 0)
-        {
-            return (int8_t)i;
-        }
-    }
-
-    return -1;
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static bool EnsureLogDayReady()
-{
-  #if !USE_M95P32
-    return false;
-  #else
-    String dayTag;
-    int32_t dayKey = -1;
-
-    if(!BuildCurrentLogDay(dayTag, dayKey))
-    {
-        return false;
-    }
-
-    if(CurrentLogDayKey != dayKey)
-    {
-        EnforceLogRetentionIfNeeded();
-        CurrentLogDayKey = dayKey;
-        CurrentLogDayTag = dayTag;
-      #ifdef USE_DEBUG_APP	
-          Serial.printf("[LOG] New log day: %s\n", CurrentLogDayTag.c_str());
-	  #endif
-    }
-
-    return true;
-  #endif
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static bool AppendFloatToM95DayChannel(uint8_t daySlot, const char* prefix, float value)
-{
-  #if !USE_M95P32
-    VAR_UNUSED(daySlot);
-    VAR_UNUSED(prefix);
-    VAR_UNUSED(value);
-    return false;
-  #else
-    VAR_UNUSED(daySlot);
-
-    if(CurrentLogDayTag.length() != 6)
-    {
-        return false;
-    }
-
-    String path = BuildSensorLogPath(prefix, CurrentLogDayTag);
-    return Eeprom.LittleFsAppend(path, (const uint8_t*)&value, sizeof(value));
-  #endif
-}
-
-//-------------------------------------------------------------------------------------------------
-
-static void FlushLogChannelIfNeeded(SensorLogChannelState& state,
-                                    uint32_t nowMs,
-                                    uint32_t flushIntervalMs,
-                                    const char* prefix)
-{
-    if((nowMs - state.LastFlushMs) < flushIntervalMs)
-    {
-        return;
-    }
-
-    state.LastFlushMs = nowMs;
-
-    if(state.Count == 0)
-    {
-        return;
-    }
-
-    if(!EnsureLogDayReady())
-    {
-        state.Sum = 0.0f;
-        state.Count = 0;
-        return;
-    }
-
-    float average = state.Sum / (float)state.Count;
-    if(!AppendFloatToM95DayChannel(0, prefix, average))
-    {
-      #ifdef USE_DEBUG_APP	
-        Serial.printf("[LOG] Write failed: %s_%s.bin\n", prefix, CurrentLogDayTag.c_str());
-	  #endif	
-    }
-
-    state.Sum = 0.0f;
-    state.Count = 0;
+    AmbientLightLux = ReadAmbientLightLux();
+    return AmbientLightLux;
 }
 
 //-------------------------------------------------------------------------------------------------
 
 void InitSensorDataLogging()
 {
+    Load1LogChannelID = SensorLogger.RegisterChannel("ADC_Load1", "ADC_LOAD1", "Load 1 current", "A",  ADC_LOG_SAMPLE_INTERVAL_MS, ADC_LOG_AVG_WINDOW_MS, SensorLogReadLoad1);
+    Load2LogChannelID = SensorLogger.RegisterChannel("ADC_Load2", "ADC_LOAD2", "Load 2 current", "A",  ADC_LOG_SAMPLE_INTERVAL_MS, ADC_LOG_AVG_WINDOW_MS, SensorLogReadLoad2);
+    LuxLogChannelID   = SensorLogger.RegisterChannel("LUX",       "LUX",       "Ambient light",  "lx", LUX_LOG_SAMPLE_INTERVAL_MS, LUX_LOG_AVG_WINDOW_MS, SensorLogReadLux);
+
+    SensorLogger.SetRetentionThreshold(LOG_RETENTION_THRESHOLD_PERCENT);
+
   #if !USE_M95P32
-   #ifdef USE_DEBUG_APP	
+    SensorLogger.Begin(nullptr);
+   #ifdef USE_DEBUG_APP
     Serial.println("[LOG] M95P32 logging disabled at build time.");
-   #endif  
-	return;
+   #endif
   #else
-    uint32_t nowMs = millis();
-    Load1LogState.LastSampleMs = nowMs;
-    Load1LogState.LastFlushMs = nowMs;
-    Load1LogState.Sum = 0.0f;
-    Load1LogState.Count = 0;
-
-    Load2LogState.LastSampleMs = nowMs;
-    Load2LogState.LastFlushMs = nowMs;
-    Load2LogState.Sum = 0.0f;
-    Load2LogState.Count = 0;
-
-    LuxLogState.LastSampleMs = nowMs;
-    LuxLogState.LastFlushMs = nowMs;
-    LuxLogState.Sum = 0.0f;
-    LuxLogState.Count = 0;
-   #ifdef USE_DEBUG_APP	
+    SensorLogger.Begin(&Eeprom);
+   #ifdef USE_DEBUG_APP
     Serial.printf("[LOG] Ready. M95 LittleFS used=%u total=%u\n", (uint32_t)Eeprom.LittleFsUsedBytes(), (uint32_t)Eeprom.LittleFsTotalBytes());
-   #endif	
+   #endif
   #endif
 }
 
@@ -1706,208 +1285,28 @@ void InitSensorDataLogging()
 
 void UpdateSensorDataLogging(uint32_t nowMs)
 {
-    if((nowMs - Load1LogState.LastSampleMs) >= ADC_LOG_SAMPLE_INTERVAL_MS)
-    {
-        Load1LogState.LastSampleMs = nowMs;
-        Load1LogState.Sum += Load1CurrentA;
-        Load1LogState.Count++;
-    }
-
-    if((nowMs - Load2LogState.LastSampleMs) >= ADC_LOG_SAMPLE_INTERVAL_MS)
-    {
-        Load2LogState.LastSampleMs = nowMs;
-        Load2LogState.Sum += Load2CurrentA;
-        Load2LogState.Count++;
-    }
-
-    if((nowMs - LuxLogState.LastSampleMs) >= LUX_LOG_SAMPLE_INTERVAL_MS)
-    {
-        LuxLogState.LastSampleMs = nowMs;
-        AmbientLightLux = ReadAmbientLightLux();
-        LuxLogState.Sum += AmbientLightLux;
-        LuxLogState.Count++;
-    }
-
-    FlushLogChannelIfNeeded(Load1LogState, nowMs, ADC_LOG_AVG_WINDOW_MS, "ADC_Load1");
-    FlushLogChannelIfNeeded(Load2LogState, nowMs, ADC_LOG_AVG_WINDOW_MS, "ADC_Load2");
-    FlushLogChannelIfNeeded(LuxLogState, nowMs, LUX_LOG_AVG_WINDOW_MS, "LUX");
+    SensorLogger.Update(nowMs);
 }
 
 //-------------------------------------------------------------------------------------------------
 
 String GetSensorLogsManifestJson()
 {
-  #if !USE_M95P32
-    return "{\"usedBytes\":0,\"totalBytes\":0,\"files\":[]}";
-  #else
-    if(!Eeprom.IsLittleFsMounted() && !Eeprom.MountLittleFs(true))
-    {
-        return "{\"usedBytes\":0,\"totalBytes\":0,\"files\":[]}";
-    }
-
-    String payload;
-    payload.reserve(2048);
-    payload += "{\"usedBytes\":";
-    payload += String((uint32_t)Eeprom.LittleFsUsedBytes());
-    payload += ",\"totalBytes\":";
-    payload += String((uint32_t)Eeprom.LittleFsTotalBytes());
-    payload += ",\"files\":[";
-
-    String filesJson = Eeprom.LittleFsListFilesJson();
-    bool first = true;
-    int start = 0;
-    while(true)
-    {
-        int namePos = filesJson.indexOf("\"name\":\"", start);
-        if(namePos < 0)
-        {
-            break;
-        }
-
-        int nameStart = namePos + 8;
-        int nameEnd = filesJson.indexOf('"', nameStart);
-        if(nameEnd < 0)
-        {
-            break;
-        }
-
-        String name = filesJson.substring(nameStart, nameEnd);
-
-        int sizePos = filesJson.indexOf("\"size\":", nameEnd);
-        if(sizePos < 0)
-        {
-            break;
-        }
-        int sizeStart = sizePos + 7;
-        int sizeEnd = filesJson.indexOf('}', sizeStart);
-        if(sizeEnd < 0)
-        {
-            break;
-        }
-
-        String sizeText = filesJson.substring(sizeStart, sizeEnd);
-        uint32_t sizeBytes = (uint32_t)sizeText.toInt();
-
-        String typeName;
-        String dayTag;
-        if(ParseSensorLogFileName(name, typeName, dayTag))
-        {
-            if(!first)
-            {
-                payload += ",";
-            }
-            first = false;
-
-            payload += "{\"name\":\"";
-            payload += name;
-            payload += "\",\"type\":\"";
-            payload += typeName;
-            payload += "\",\"date\":\"";
-            payload += dayTag;
-            payload += "\",\"bytes\":";
-            payload += String((uint32_t)sizeBytes);
-            payload += "}";
-        }
-
-        start = sizeEnd + 1;
-    }
-
-    payload += "]}";
-    return payload;
-  #endif
+    return SensorLogger.GetManifestJson();
 }
 
 //-------------------------------------------------------------------------------------------------
 
 bool GetSensorLogFileInfo(const String& requestedName, uint32_t& outSizeBytes)
 {
-  #if !USE_M95P32
-    VAR_UNUSED(requestedName);
-    outSizeBytes = 0;
-    return false;
-  #else
-    if(requestedName.length() == 0 || requestedName.indexOf("/") >= 0 || requestedName.indexOf("\\") >= 0 || requestedName.indexOf("..") >= 0)
-    {
-        return false;
-    }
-
-    String typeName;
-    String dayTag;
-
-    if(!ParseSensorLogFileName(requestedName, typeName, dayTag))
-    {
-        return false;
-    }
-
-    if(!Eeprom.IsLittleFsMounted() && !Eeprom.MountLittleFs(true))
-    {
-        return false;
-    }
-
-    size_t sizeBytes = 0;
-    String path = String("/") + requestedName;
-    if(!Eeprom.LittleFsGetFileSize(path, sizeBytes))
-    {
-        return false;
-    }
-
-    VAR_UNUSED(typeName);
-    VAR_UNUSED(dayTag);
-    outSizeBytes = (uint32_t)sizeBytes;
-    return true;
-  #endif
+    return SensorLogger.GetFileInfo(requestedName, outSizeBytes);
 }
 
 //-------------------------------------------------------------------------------------------------
 
 bool ReadSensorLogFileRange(const String& requestedName, uint32_t offsetBytes, uint8_t* pBuffer, size_t lengthBytes)
 {
-  #if !USE_M95P32
-    VAR_UNUSED(requestedName);
-    VAR_UNUSED(offsetBytes);
-    VAR_UNUSED(pBuffer);
-    VAR_UNUSED(lengthBytes);
-    return false;
-  #else
-    if(pBuffer == nullptr || lengthBytes == 0)
-    {
-        return false;
-    }
-
-    if(!Eeprom.IsLittleFsMounted() && !Eeprom.MountLittleFs(true))
-    {
-        return false;
-    }
-
-    String typeName;
-    String dayTag;
-    if(!ParseSensorLogFileName(requestedName, typeName, dayTag))
-    {
-        return false;
-    }
-
-    uint32_t totalSizeBytes = 0;
-    if(!GetSensorLogFileInfo(requestedName, totalSizeBytes))
-    {
-        return false;
-    }
-
-    if(offsetBytes + lengthBytes > totalSizeBytes)
-    {
-        return false;
-    }
-
-    size_t outRead = 0;
-    String path = String("/") + requestedName;
-    if(!Eeprom.LittleFsReadRange(path, offsetBytes, pBuffer, lengthBytes, outRead))
-    {
-        return false;
-    }
-
-    VAR_UNUSED(typeName);
-    VAR_UNUSED(dayTag);
-    return outRead == lengthBytes;
-  #endif
+    return SensorLogger.ReadFileRange(requestedName, offsetBytes, pBuffer, lengthBytes);
 }
 
 //-------------------------------------------------------------------------------------------------
