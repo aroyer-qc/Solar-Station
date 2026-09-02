@@ -75,7 +75,6 @@
             border-color: var(--accent);
             box-shadow: 0 6px 18px rgba(44, 122, 90, 0.15);
         }
-        a.stat .mini { color: var(--accent); }
         .status-row {
             display: flex;
             align-items: center;
@@ -387,17 +386,14 @@
                 <a class="stat" href="/portal/logs?type=ADC_LOAD1">
                     Load 1 current
                     <strong data-live-key="load1CurrentA">{{load1CurrentA}} A</strong>
-                    <span class="mini">View daily log</span>
                 </a>
                 <a class="stat" href="/portal/logs?type=ADC_LOAD2">
                     Load 2 current
                     <strong data-live-key="load2CurrentA">{{load2CurrentA}} A</strong>
-                    <span class="mini">View daily log</span>
                 </a>
                 <a class="stat" href="/portal/logs?type=LUX">
                     Ambient light
                     <strong data-live-key="ambientLightLux">{{ambientLightLux}} lx</strong>
-                    <span class="mini">View daily log</span>
                 </a>
                 <div class="stat">
                     Panel voltage
