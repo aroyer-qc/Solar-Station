@@ -170,6 +170,8 @@ String SensorLoggerModule::GetManifestJson()
     Payload += (IsSystemTimeValid() ? "true" : "false");
     Payload += ",\"currentDay\":\"";
     Payload += m_CurrentDayTag;
+    Payload += "\",\"storageDiag\":\"";
+    Payload += (m_pStorage != nullptr) ? m_pStorage->GetDiagnosticSummary() : String("no storage bound");
     Payload += "\",\"channels\":[";
 
     for(uint8_t i = 0; i < m_ChannelCount; i++)

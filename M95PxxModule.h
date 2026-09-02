@@ -15,6 +15,7 @@ class M95PxxModule
 
         void            Begin();
         bool            IsReady();
+        String          GetDiagnosticSummary() const;
 
         bool            ReadData(uint32_t Address, uint8_t* pBuffer, size_t Length);
         bool            WriteData(uint32_t Address, const uint8_t* pData, size_t Length);
@@ -68,6 +69,9 @@ class M95PxxModule
         SPIClass        m_Spi;
         bool            m_IsReady;
         bool            m_LittleFsMounted;
+        uint8_t         m_StatusRegister;
+        uint8_t         m_JedecId[3];
+        int             m_LastLfsError;
         lfs_t           m_Lfs;
         lfs_config      m_LfsCfg;
         uint8_t         m_ReadCache[LFS_CACHE_SIZE];

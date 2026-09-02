@@ -20,7 +20,10 @@ extern "C" {
 M95PxxModule::M95PxxModule()
     : m_Spi(VSPI),
       m_IsReady(false),
-      m_LittleFsMounted(false)
+      m_LittleFsMounted(false),
+      m_StatusRegister(0),
+      m_JedecId{0, 0, 0},
+      m_LastLfsError(0)
 {
     memset(&m_Lfs, 0, sizeof(m_Lfs));
     memset(&m_LfsCfg, 0, sizeof(m_LfsCfg));
@@ -43,6 +46,10 @@ void M95PxxModule::Begin()
 
     m_IsReady = true;
     ReadJedecId(manufacturer, type, capacity);
+    m_StatusRegister = status;
+    m_JedecId[0] = manufacturer;
+    m_JedecId[1] = type;
+    m_JedecId[2] = capacity;
     Serial.printf("[M95Pxx] Init. SCK=%u MOSI=%u MISO=%u CS=%u SR=0x%02X JEDEC=%02X %02X %02X\n",
                   M95PXX_SPI_SCK_PIN, M95PXX_SPI_MOSI_PIN, M95PXX_SPI_MISO_PIN, M95PXX_SPI_CS_PIN,
                   status, manufacturer, type, capacity);
@@ -78,6 +85,17 @@ bool M95PxxModule::IsReady()
     }
 
 	return m_IsReady;
+}
+
+String M95PxxModule::GetDiagnosticSummary() const
+{
+    char buffer[96];
+
+    snprintf(buffer, sizeof(buffer), "SR=0x%02X JEDEC=%02X %02X %02X ready=%u mounted=%u lfsError=%d",
+             m_StatusRegister, m_JedecId[0], m_JedecId[1], m_JedecId[2],
+             m_IsReady ? 1u : 0u, m_LittleFsMounted ? 1u : 0u, m_LastLfsError);
+
+    return String(buffer);
 }
 
 bool M95PxxModule::ReadData(uint32_t Address, uint8_t* pBuffer, size_t Length)
@@ -300,10 +318,12 @@ bool M95PxxModule::MountLittleFs(bool FormatOnFail)
 
     if(result < 0)
     {
+        m_LastLfsError = result;
         Serial.printf("[M95Pxx] lfs_mount failed: %d\n", result);
         return false;
     }
 
+    m_LastLfsError = 0;
     m_LittleFsMounted = true;
     return true;
 }
@@ -318,6 +338,7 @@ bool M95PxxModule::FormatLittleFs()
     int result = lfs_format(&m_Lfs, &m_LfsCfg);
     if(result < 0)
     {
+        m_LastLfsError = result;
         Serial.printf("[M95Pxx] lfs_format failed: %d\n", result);
         return false;
     }

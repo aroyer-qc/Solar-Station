@@ -28,7 +28,8 @@ const state = {
     stepSeconds: 1,
     plot: null,
     storageReady: false,
-    clockValid: false
+    clockValid: false,
+    storageDiag: ''
 };
 
 function setMessage(text) {
@@ -122,7 +123,7 @@ function updateHeader() {
         elements.download.href = `/api/logs/download?name=${encodeURIComponent(state.file.name)}`;
         elements.download.style.display = '';
     } else if (!state.storageReady) {
-        elements.subtitle.textContent = 'Log storage unavailable: the M95P32 filesystem is not mounted.';
+        elements.subtitle.textContent = `Log storage unavailable: ${state.storageDiag}`;
         elements.download.style.display = 'none';
     } else if (!state.clockValid) {
         elements.subtitle.textContent = 'Waiting for a valid system clock (NTP). Nothing is recorded until then.';
@@ -385,6 +386,7 @@ async function initialize() {
         const manifest = await fetchManifest();
         state.storageReady = manifest.storageReady === true;
         state.clockValid = manifest.clockValid === true;
+        state.storageDiag = manifest.storageDiag || 'M95P32 filesystem not mounted';
         state.channels = Array.isArray(manifest.channels) ? manifest.channels : [];
         state.files = Array.isArray(manifest.files) ? manifest.files : [];
     } catch (error) {
